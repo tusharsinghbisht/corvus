@@ -1,11 +1,12 @@
 @import "../components/workspace.css";
 
 :root {
-  --paper: #f6f7f2;
-  --ink: #1b2922;
-  --green: #31573e;
-  --line: #dce1d6;
-  --muted: #768075;
+  color-scheme: dark;
+  --background: #101411;
+  --ink: #d8e0d5;
+  --green: #bdd8a5;
+  --line: #293127;
+  --muted: #98a58f;
   font-family: Arial, Helvetica, sans-serif;
   color: var(--ink);
   font-size: 14px;
@@ -16,6 +17,7 @@
 }
 body {
   margin: 0;
+  background: var(--background);
 }
 a {
   color: inherit;
@@ -83,10 +85,10 @@ pre {
 }
 .button.primary {
   background: var(--green);
-  color: #fff;
+  color: #172010;
 }
 .button.primary:hover {
-  background: #24472f;
+  background: #cce2b6;
 }
 .brand {
   display: inline-flex;
@@ -110,7 +112,7 @@ pre {
   flex-shrink: 0;
 }
 .landing {
-  background: var(--paper);
+  background: var(--background);
 }
 .landing-nav {
   max-width: 1240px;
@@ -130,7 +132,7 @@ pre {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #bbc7b9;
+  border: 1px solid #43543a;
   border-radius: 5px;
   padding: 10px 15px;
 }
@@ -143,7 +145,7 @@ pre {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #5d735f;
+  color: var(--green);
   margin-bottom: 29px;
 }
 .hero h1 {
@@ -155,7 +157,7 @@ pre {
 .hero > p {
   font-size: 17px;
   line-height: 1.8;
-  color: #667064;
+  color: var(--muted);
   max-width: 550px;
   margin-top: 28px;
 }
@@ -170,7 +172,7 @@ pre {
 }
 .quiet-link {
   font-size: 12px;
-  color: #596d57;
+  color: var(--green);
 }
 .hero-foot {
   margin-top: 78px;
@@ -178,7 +180,7 @@ pre {
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
-  color: #7a8476;
+  color: var(--muted);
   font-size: 11px;
 }
 .workflow {
@@ -194,7 +196,7 @@ pre {
   margin-bottom: 40px;
 }
 .section-heading .eyebrow {
-  color: #6b8168;
+  color: var(--green);
   margin-bottom: 18px;
 }
 .section-heading h2,
@@ -207,7 +209,7 @@ pre {
 .section-heading > p {
   font-size: 12px;
   line-height: 1.9;
-  color: #778171;
+  color: var(--muted);
 }
 .steps {
   display: grid;
@@ -227,7 +229,7 @@ pre {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #6e846a;
+  color: var(--green);
   font-size: 9px;
   letter-spacing: 1px;
   margin-bottom: 48px;
@@ -242,7 +244,7 @@ pre {
 .steps p {
   font-size: 12px;
   line-height: 1.9;
-  color: #788071;
+  color: var(--muted);
 }
 .principles {
   background: #1c2b22;
@@ -273,7 +275,7 @@ pre {
   justify-content: space-between;
   padding: 32px 44px;
   font-size: 11px;
-  color: #7a8476;
+  color: var(--muted);
 }
 .landing-footer > a:last-child {
   display: flex;
@@ -285,7 +287,7 @@ pre {
   font-size: 22px;
 }
 .login-page {
-  background: var(--paper);
+  background: var(--background);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -303,13 +305,13 @@ pre {
   place-items: center;
   width: 48px;
   height: 48px;
-  border: 1px solid #d6dfcf;
+  border: 1px solid #43543a;
   border-radius: 12px;
-  color: #56744c;
+  color: var(--green);
   margin-bottom: 26px;
 }
 .login-card .eyebrow {
-  color: #8a9883;
+  color: var(--green);
   margin-bottom: 12px;
 }
 .login-card h1 {
@@ -319,7 +321,7 @@ pre {
 }
 .login-card > p {
   margin: 12px 0 30px;
-  color: #81897b;
+  color: var(--muted);
   font-size: 12px;
 }
 .login-card form {
@@ -334,9 +336,9 @@ label {
 }
 input,
 select {
-  border: 1px solid #cfd6c7;
+  border: 1px solid #43543a;
   border-radius: 5px;
-  background: #fff;
+  background: #151d11;
   padding: 11px 12px;
   color: var(--ink);
   width: 100%;
@@ -348,16 +350,16 @@ select {
 .login-card > small {
   display: block;
   text-align: center;
-  color: #8a9382;
+  color: var(--muted);
   font-size: 10px;
   margin-top: 24px;
 }
 .login-caption {
-  color: #8a9382;
+  color: var(--muted);
   font-size: 11px;
 }
 .form-error {
-  color: #a13f40;
+  color: #e5a18a;
   font-size: 12px;
   line-height: 1.6;
 }

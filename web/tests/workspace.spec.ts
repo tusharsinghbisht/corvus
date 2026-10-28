@@ -17,6 +17,10 @@ test("public landing page has the custom mark and private APIs reject anonymous 
   request,
 }) => {
   await page.goto("/");
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(16, 20, 17)",
+  );
   await expect(
     page.getByRole("heading", { name: "More context. Fewer assumptions." }),
   ).toBeVisible();
@@ -35,6 +39,10 @@ test("public landing page has the custom mark and private APIs reject anonymous 
   expect((await request.get("/api/alerts")).status()).toBe(401);
   await page.goto("/soc");
   await expect(page).toHaveURL(/\/login$/);
+  await expect(page.locator(".login-page")).toHaveCSS(
+    "background-color",
+    "rgb(16, 20, 17)",
+  );
 });
 
 test("alert pagination, filtering, source inspection, and untrusted markup", async ({
