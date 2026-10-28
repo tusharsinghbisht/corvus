@@ -1,0 +1,27 @@
+{
+  "name": "corvus-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0",
+    "check": "tsc --noEmit",
+    "test": "playwright test",
+    "format": "prettier --write app components lib tests next.config.ts playwright.config.ts"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.7",
+    "@playwright/test": "^1.50",
+    "prettier": "^3.5"
+  }
+}

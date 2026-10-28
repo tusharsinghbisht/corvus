@@ -157,6 +157,16 @@ class WazuhAdapter:
             )
         return self._search(ALERTS, filters, limit, descending=True)
 
+    def read_alert_window(self, *, start: datetime, end: datetime, limit: int = 1000):
+        """Read all agents and severities in a bounded ingestion window, oldest first."""
+        start, end = utc(start), utc(end)
+        if end <= start or (end - start).total_seconds() > 24 * 3600:
+            raise ValueError("Alert window must be positive and no longer than 24 hours")
+        if type(limit) is not int or not 1 <= limit <= MAX_EVENTS:
+            raise ValueError(f"Event limit must be between 1 and {MAX_EVENTS}")
+        filters = [{"range": {"timestamp": {"gte": iso(start), "lte": iso(end)}}}]
+        return self._search(ALERTS, filters, limit)
+
     @staticmethod
     def _scope(agent_id, start, end, limit):
         if not isinstance(agent_id, str) or not re.fullmatch(r"\d{3,8}", agent_id):

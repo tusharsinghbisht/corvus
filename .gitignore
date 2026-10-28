@@ -14,5 +14,8 @@ dist/
 artifacts/
 .ruff_cache/
 node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
 playwright-report/
 test-results/

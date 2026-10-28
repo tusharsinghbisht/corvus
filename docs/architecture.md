@@ -18,7 +18,7 @@ Source documents and exact references are retained alongside normalized fields. 
 
 The local artifact dashboard has been retired. Regression fixtures remain offline tests.
 
-## Live application being built
+## Live application
 
 ```text
 Browser → Caddy HTTPS → Next.js
@@ -31,12 +31,12 @@ Browser → Caddy HTTPS → Next.js
 ```
 
 - **Next.js:** public landing page and authenticated SOC interface. No credentials or model calls in browser code.
-- **Python API:** connection onboarding, alert queries, triage requests, session authentication, and metrics.
-- **Worker:** checkpointed ingestion and durable triage jobs. It reuses the existing adapter, collector, and model client.
-- **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, triage attempts, and audit events. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
+- **Python API:** authenticated connection onboarding, alert queries, source inspection, and session management.
+- **Worker:** checkpointed alert ingestion using the existing Wazuh adapter. No model calls yet.
+- **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, and audit events. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
 - **Docker Compose:** separate application services and persistent database volume. Existing Caddy provides HTTPS at `corvus.0xbenzo.dev`. No public database/indexer ports, Docker socket, or root application access.
 
-This slice is not deployed yet. Build and verify an end-to-end path before adding more infrastructure.
+The first slice covers connection → ingestion → storage → alert inspection. Manual Analyst triage is next. See the [deployment guide](deployment.md) for Docker operations and current limits.
 
 ## Storage
 
@@ -50,7 +50,7 @@ Poll `wazuh-alerts-*` across all agents and severities using dedicated reader cr
 
 Timestamp polling has a bounded late-arrival horizon; it cannot guarantee capture of arbitrarily backdated documents. Show sync health and lag. Do not modify Wazuh detections just to make a demonstration pass.
 
-## Analyst modes
+## Analyst modes — next slice
 
 The Analyst pipeline is deterministic: queue → bounded evidence collection → one model request → validation → preserved candidate → human review.
 

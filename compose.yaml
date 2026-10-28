@@ -1,0 +1,112 @@
+name: corvus
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-server: &server
+  image: corvus-server:${CORVUS_REVISION:-local}
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:size=32m,mode=1777
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  volumes:
+    - ${CORVUS_CONFIG_DIR:?Set CORVUS_CONFIG_DIR}/server.json:/run/corvus/server.json:ro
+    - ${CORVUS_CONFIG_DIR}/wazuh-ca.pem:/run/corvus/wazuh-ca.pem:ro
+  networks: [private, wazuh]
+  logging: *logging
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: corvus
+      POSTGRES_DB: corvus
+      POSTGRES_PASSWORD_FILE: /run/secrets/database-password
+    volumes:
+      - database:/var/lib/postgresql/data
+    secrets: [database-password]
+    networks: [private]
+    mem_limit: 768m
+    cpus: 1
+    logging: *logging
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U corvus -d corvus"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: [no-new-privileges:true]
+
+  api:
+    <<: *server
+    build:
+      context: .
+      dockerfile: infra/docker/server.Dockerfile
+    mem_limit: 384m
+    cpus: 0.75
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    <<: *server
+    command: [python, -m, corvus.server.worker]
+    mem_limit: 512m
+    cpus: 0.75
+    healthcheck:
+      test: [CMD, python, -c, "import pathlib,time; assert time.time()-pathlib.Path('/tmp/corvus-worker-heartbeat').stat().st_mtime<300"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  web:
+    image: corvus-web:${CORVUS_REVISION:-local}
+    build: ./web
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      private:
+      wazuh:
+        aliases: [corvus-web]
+    mem_limit: 384m
+    cpus: 0.75
+    logging: *logging
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  database:
+
+secrets:
+  database-password:
+    file: ${CORVUS_CONFIG_DIR}/database-password
+
+networks:
+  private:
+    internal: true
+  wazuh:
+    external: true
+    name: single-node_default

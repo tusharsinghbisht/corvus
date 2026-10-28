@@ -4,9 +4,9 @@ An alert investigation service. Wazuh supplies detections and telemetry; Corvus 
 
 ## Status
 
-**Working:** read-only Wazuh adapter, evidence collector, single-pass Analyst, report validation, and offline regression tests.
+**Working:** read-only Wazuh adapter, evidence collector, single-pass Analyst, report validation, and offline regression tests. The Next.js application adds authenticated Wazuh onboarding, PostgreSQL-backed alert ingestion, filtering/pagination, sync health, and original-source inspection. See [deployment](docs/deployment.md).
 
-**In progress:** a Next.js application with Wazuh connection onboarding, PostgreSQL-backed alert ingestion, an authenticated alert queue, and manual/opt-in automatic triage. The live application is not deployed yet.
+**Next:** manual Analyst triage from the alert queue, followed by explicitly bounded automatic mode. The current ingestion worker makes no model calls.
 
 The earlier saved-artifact dashboard has been retired. Synthetic fixtures remain development tests, not product data. There is no response executor or autonomous investigation loop.
 
@@ -16,7 +16,7 @@ Requires Python 3.11+.
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m pip install -e '.[server,dev]'
 .venv/bin/corvus --help
 
 .venv/bin/python -m unittest discover -s tests -v
@@ -41,10 +41,13 @@ src/corvus/
   adapters/       Backend-specific retrieval and field mapping
   providers/      Azure model transport
   reporting/      Report contract, evidence binding, validation
+  server/         Authentication, connections, PostgreSQL, ingestion
   evidence.py     Backend-independent evidence collection
   analyst.py      Single-pass advisory analysis
   cli.py          Local collection and analysis commands
-infra/wazuh/      Lab provisioning and retention helpers
+web/              Next.js landing page and SOC interface
+compose.yaml      Application deployment (web, API, worker, PostgreSQL)
+infra/            Docker images, proxy configuration, lab helpers
 tests/            Regression and boundary tests
 evaluations/      Offline synthetic fixtures and scoring
 ```
@@ -57,7 +60,7 @@ Work locally, run the checks above, commit, and push to GitHub. The VPS checkout
 ssh wazuh 'git -C /opt/corvus/app pull --ff-only'
 ```
 
-Do not edit application code separately on the VPS or copy it there with rsync. Secrets and runtime data stay outside the checkout. Pulling code does not deploy or restart services; the live application deployment is still pending.
+Do not edit application code separately on the VPS or copy it there with rsync. Secrets and runtime data stay outside the checkout. Pulling code does not deploy or restart services. Build and update containers with the committed Compose file; see the [deployment guide](docs/deployment.md).
 
 ## Boundaries
 
@@ -69,6 +72,7 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 
 ## Documentation
 
+- [Deployment and operations](docs/deployment.md)
 - [Architecture](docs/architecture.md)
 - [Collector setup and CLI](docs/read-only-cli.md)
 - [Analyst configuration and report validation](docs/investigation-reports.md)
