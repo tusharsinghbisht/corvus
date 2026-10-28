@@ -1,0 +1,37 @@
+{
+  "policy": {
+    "description": "Corvus lab: delete archive indices after 3 days of index age; alerts are not affected.",
+    "default_state": "retain",
+    "states": [
+      {
+        "name": "retain",
+        "actions": [],
+        "transitions": [
+          {
+            "state_name": "delete",
+            "conditions": {
+              "min_index_age": "3d"
+            }
+          }
+        ]
+      },
+      {
+        "name": "delete",
+        "actions": [
+          {
+            "delete": {}
+          }
+        ],
+        "transitions": []
+      }
+    ],
+    "ism_template": [
+      {
+        "index_patterns": [
+          "wazuh-archives-*"
+        ],
+        "priority": 200
+      }
+    ]
+  }
+}

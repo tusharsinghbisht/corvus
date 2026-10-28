@@ -1,0 +1,12 @@
+[Unit]
+Description=Prune closed Corvus lab Wazuh archive files older than 72 hours
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/corvus/bin/prune-wazuh-archives.py --apply
+User=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true

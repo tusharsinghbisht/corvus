@@ -1,0 +1,33 @@
+{
+  "case_id": "002",
+  "provenance": "synthetic",
+  "expected_disposition": "malicious",
+  "required_finding_evidence": [
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e02"
+    },
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e03"
+    },
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e04"
+    },
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e05"
+    }
+  ],
+  "required_uncertainties": [],
+  "forbidden_recommendations": [],
+  "human_review_questions": [
+    "Are process and file correlations supported rather than inferred only from proximity?",
+    "Does the report avoid unsupported claims of exfiltration or successful containment?"
+  ]
+}

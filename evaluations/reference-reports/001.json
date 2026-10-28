@@ -1,0 +1,118 @@
+{
+  "schema_version": "0.1",
+  "collection_id": "00000000-0000-4000-8000-000000000001",
+  "evidence_digest": "aab118aa63e3c6bdc97be96cfecc970297bf9c856b9171d241b668eaa6a9a1c2",
+  "disposition": "likely_benign",
+  "summary": "The scoped execution is consistent with approved inventory activity.",
+  "summary_finding_ids": [
+    "F1",
+    "F2"
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "kind": "observation",
+      "statement": "The parent is a scheduled-task process and the script queries operating-system inventory.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e01"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e02"
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "kind": "inference",
+      "statement": "An independent approval matches the host, task, command and script hash within the authorized window.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e03"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e01"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e02"
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "timestamp": "2020-01-01T12:00:00Z",
+      "description": "Suspicious PowerShell alert was indexed.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "kind": "host",
+      "value": "lab-host-01",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        }
+      ]
+    }
+  ],
+  "alternative_explanations": [
+    {
+      "explanation": "Encoded PowerShell can also be abused by an attacker.",
+      "assessment": "Encoding alone is not malicious; the matching approval and observed script support the legitimate explanation.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e01"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e02"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e03"
+        }
+      ]
+    }
+  ],
+  "uncertainties": [],
+  "recommendations": [
+    {
+      "category": "monitor",
+      "description": "Retain the approval and observe for deviations; do not isolate solely for encoding.",
+      "rationale": "The scoped execution is consistent with approved inventory activity.",
+      "finding_ids": [
+        "F1",
+        "F2"
+      ]
+    }
+  ],
+  "limitations": [
+    "Synthetic contract fixture, not observed endpoint telemetry.",
+    "Only the supplied time window and log sources are represented."
+  ],
+  "response_executed": false
+}

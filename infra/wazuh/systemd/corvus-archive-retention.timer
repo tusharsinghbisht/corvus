@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly retention check for closed Wazuh archive files
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+Unit=corvus-archive-retention.service
+
+[Install]
+WantedBy=timers.target

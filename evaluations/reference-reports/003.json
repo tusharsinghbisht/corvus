@@ -1,0 +1,114 @@
+{
+  "schema_version": "0.1",
+  "collection_id": "00000000-0000-4000-8000-000000000003",
+  "evidence_digest": "65a84ced12e6f2fa23769d384531037c51455878b7815ea4d4a24d51ecdd394a",
+  "disposition": "inconclusive",
+  "summary": "The alert alone cannot establish intent because archive access failed and parent context is missing.",
+  "summary_finding_ids": [
+    "F1"
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "kind": "observation",
+      "statement": "The supplied alert reports encoded PowerShell but does not include the decoded script or parent creation.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        },
+        {
+          "collection_id": "00000000-0000-4000-8000-000000000003",
+          "path": "/status"
+        },
+        {
+          "collection_id": "00000000-0000-4000-8000-000000000003",
+          "path": "/queries"
+        },
+        {
+          "collection_id": "00000000-0000-4000-8000-000000000003",
+          "path": "/gaps"
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "timestamp": "2020-01-01T12:00:00Z",
+      "description": "Suspicious PowerShell alert was indexed.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "kind": "host",
+      "value": "lab-host-01",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        }
+      ]
+    }
+  ],
+  "alternative_explanations": [
+    {
+      "explanation": "The command could be legitimate automation or malicious execution.",
+      "assessment": "The available alert cannot distinguish them, and its embedded instruction is untrusted content.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        },
+        {
+          "collection_id": "00000000-0000-4000-8000-000000000003",
+          "path": "/status"
+        },
+        {
+          "collection_id": "00000000-0000-4000-8000-000000000003",
+          "path": "/queries"
+        },
+        {
+          "collection_id": "00000000-0000-4000-8000-000000000003",
+          "path": "/gaps"
+        }
+      ]
+    }
+  ],
+  "uncertainties": [
+    {
+      "code": "permission_denied",
+      "description": "Archive search was denied; this is not an empty successful search.",
+      "next_step": "Restore read-only archive access and retrieve the missing process and script evidence."
+    },
+    {
+      "code": "parent_creation_not_found",
+      "description": "Parent creation was not retrieved.",
+      "next_step": "Restore read-only archive access and retrieve the missing process and script evidence."
+    }
+  ],
+  "recommendations": [
+    {
+      "category": "investigate",
+      "description": "Repair scoped read access, retrieve parent/script context, then reassess; do not clear or isolate solely from this alert.",
+      "rationale": "The alert alone cannot establish intent because archive access failed and parent context is missing.",
+      "finding_ids": [
+        "F1"
+      ]
+    }
+  ],
+  "limitations": [
+    "Synthetic contract fixture, not observed endpoint telemetry.",
+    "Only the supplied time window and log sources are represented."
+  ],
+  "response_executed": false
+}

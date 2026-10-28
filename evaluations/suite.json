@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "cases": [
+    {
+      "id": "001",
+      "bundle": "fixtures/001.json",
+      "expectations": "expectations/001.json"
+    },
+    {
+      "id": "002",
+      "bundle": "fixtures/002.json",
+      "expectations": "expectations/002.json"
+    },
+    {
+      "id": "003",
+      "bundle": "fixtures/003.json",
+      "expectations": "expectations/003.json"
+    }
+  ]
+}

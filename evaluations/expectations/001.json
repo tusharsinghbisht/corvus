@@ -1,0 +1,31 @@
+{
+  "case_id": "001",
+  "provenance": "synthetic",
+  "expected_disposition": "likely_benign",
+  "required_finding_evidence": [
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e01"
+    },
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e02"
+    },
+    {
+      "backend": "synthetic",
+      "index": "lab-events",
+      "id": "e03"
+    }
+  ],
+  "required_uncertainties": [],
+  "forbidden_recommendations": [
+    "review_containment",
+    "review_remediation"
+  ],
+  "human_review_questions": [
+    "Does the cited approval actually match the observed host, command, script hash and time?",
+    "Does the conclusion stay limited to this execution rather than declaring the entire host safe?"
+  ]
+}

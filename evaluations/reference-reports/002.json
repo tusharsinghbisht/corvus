@@ -1,0 +1,133 @@
+{
+  "schema_version": "0.1",
+  "collection_id": "00000000-0000-4000-8000-000000000002",
+  "evidence_digest": "c524d15e899961cee2b821e1efa84b89f9fcc5e1049cfcf79be8d228fce04ae9",
+  "disposition": "malicious",
+  "summary": "The correlated Office-to-PowerShell chain, startup artifact and malware detection support malicious activity.",
+  "summary_finding_ids": [
+    "F1",
+    "F2"
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "kind": "observation",
+      "statement": "An Office process spawned PowerShell, which connected externally and wrote a user startup script.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e01"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e02"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e03"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e04"
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "kind": "inference",
+      "statement": "The startup write combined with the malware detection on the same file supports a malicious persistence chain.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e04"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e05"
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "timestamp": "2020-01-01T12:00:00Z",
+      "description": "Suspicious PowerShell alert was indexed.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "kind": "host",
+      "value": "lab-host-01",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-alerts",
+          "id": "a01"
+        }
+      ]
+    }
+  ],
+  "alternative_explanations": [
+    {
+      "explanation": "An approved Office automation workflow could launch PowerShell.",
+      "assessment": "That does not adequately explain the startup script and matching malware detection; investigate authorization without ignoring affirmative evidence.",
+      "citations": [
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e01"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e02"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e03"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e04"
+        },
+        {
+          "backend": "synthetic",
+          "index": "lab-events",
+          "id": "e05"
+        }
+      ]
+    }
+  ],
+  "uncertainties": [],
+  "recommendations": [
+    {
+      "category": "review_containment",
+      "description": "Ask an authorized operator to review containment; preserve the startup file and investigate scope. No action has been executed.",
+      "rationale": "The correlated Office-to-PowerShell chain, startup artifact and malware detection support malicious activity.",
+      "finding_ids": [
+        "F1",
+        "F2"
+      ]
+    }
+  ],
+  "limitations": [
+    "Synthetic contract fixture, not observed endpoint telemetry.",
+    "Only the supplied time window and log sources are represented."
+  ],
+  "response_executed": false
+}
