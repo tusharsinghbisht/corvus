@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, FileJson, Fingerprint } from "lucide-react";
 import { api, ApiError, levelName, time } from "@/lib/api";
 import type { AlertDetail as Detail } from "@/lib/types";
+import { Investigation } from "./investigation";
 
 function value(item: unknown) {
   return item == null || item === ""
@@ -120,6 +121,7 @@ export function AlertDetail({ id }: { id: string }) {
           </p>
         </section>
       </div>
+      <Investigation key={id} alertId={id} />
       <section className="panel source-panel">
         <details>
           <summary>

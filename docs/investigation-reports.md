@@ -21,7 +21,7 @@ Saved evidence → selected input → Analyst → model-provider interface
 - `reporting/validation.py` checks structure, bindings, references, and recommendation safety.
 - `evaluation.py` scores offline regression cases; it makes no model calls.
 
-The CLI currently wires one provider adapter. Its endpoint, credential file, deployment identifier, and transport limits are documented in the [adapter setup guide](providers/azure-foundry.md). Other providers require an adapter and selection wiring; a provider-selection UI is not implemented.
+The CLI and manual-triage worker currently wire one provider adapter. Its endpoint, credential file, deployment identifier, and transport limits are documented in the [adapter setup guide](providers/azure-foundry.md). Other providers require an adapter and selection wiring; a provider-selection UI is not implemented.
 
 ## Commands
 
@@ -45,7 +45,9 @@ Without `--allow-external`, the command stops before loading model credentials o
 
 Output preserves the candidate, validation result/version, analysis ID, prompt version, evidence digest, actual served model, token usage, timing, and human-review requirement. Invalid output is retained as rejected rather than silently repaired. Provider failures remain operational errors, not invented inconclusive reports.
 
-Files are private, exclusive, and never overwritten. Existing output is checked before a billable request. This CLI is not a durable job system; failure between a completed request and saving its response remains possible.
+CLI files are private, exclusive, and never overwritten. Existing output is checked before a billable request. This CLI is not a durable job system; failure between a completed request and saving its response remains possible.
+
+The live application adds [durable manual investigations](manual-triage.md): saved bounded evidence, exact-digest approval, one request per attempt, preserved replies before validation, and attempt history. Interrupted/ambiguous model requests become unknown and require an explicit new attempt; they are not automatically retried. Model credentials are worker-only.
 
 Revalidate a saved candidate against its exact evidence:
 
@@ -91,4 +93,4 @@ The historical three-case model batch matched all disposition labels but passed 
 
 Historical model testing used synthetic input only; no live Windows bundle was uploaded. Failed candidates and original inputs remain in private artifacts. Prompt changes have not been shown to eliminate these reasoning failures.
 
-Current limits: one model call, no investigative tool loop, no response executor, no automatic redaction, and no durable triage jobs. JSON inputs cap at 16 MiB; evidence catalogs cap at 5,000 documents plus the alert. Duplicate JSON keys and non-standard numeric values are rejected. Provider-specific request/token limits belong to the selected adapter.
+Current limits: one model call per approved attempt, no investigative tool loop, no response executor, no automatic redaction, and no recorded human-review lifecycle. Durable jobs are available in the live application, not the CLI. JSON inputs cap at 16 MiB; evidence catalogs cap at 5,000 documents plus the alert. Duplicate JSON keys and non-standard numeric values are rejected. Provider-specific request/token limits belong to the selected adapter.

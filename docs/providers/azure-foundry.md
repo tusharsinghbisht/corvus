@@ -4,7 +4,7 @@ Configuration reference for `src/corvus/providers/azure_foundry.py`. This is one
 
 ## Private configuration
 
-The current CLI adapter reads `~/.config/corvus/azure_foundry.json`. Example structure only:
+The CLI adapter reads `~/.config/corvus/azure_foundry.json`. The manual-triage worker uses the same adapter and configuration contract. Example structure only:
 
 ```json
 {
@@ -20,6 +20,12 @@ Keep the file outside Git, with mode `0600`. The key is excluded from configurat
 
 The `model` value is an exact deployment identifier. The implementation currently defaults to the deployment requested for the lab, `DeepSeek-V4-Flash`; it does not silently substitute or fall back to another model. Catalog availability does not establish that a deployment is callable.
 
+## Worker deployment
+
+Install the same configuration outside the VPS checkout at `~ubuntu/.config/corvus/app/analyst.json`, owned by UID/GID `10001:10001`, mode `0600`. `compose.analyst.yaml` mounts it read-only **only in the worker** and sets `CORVUS_FOUNDRY_CONFIG=/run/corvus/analyst.json`. Include that override on every Compose update; see [deployment](../deployment.md). Never mount it in API/web or expose it through frontend environment variables.
+
+The requested deployment remains `DeepSeek-V4-Flash`. Configuration loading alone makes no request. Do not probe it with real evidence or run an analysis without separate explicit per-bundle approval. Transport availability is not yet proven by a successful real-evidence request.
+
 ## Transport constraints
 
 - HTTPS `/openai/v1` endpoints under `.openai.azure.com` or `.services.ai.azure.com`, port 443.
@@ -34,6 +40,6 @@ The `model` value is an exact deployment identifier. The implementation currentl
 
 The Analyst depends on the `AnalystModel` interface in `src/corvus/providers/__init__.py`, not this HTTP client. Another adapter can implement `complete(messages)` and return a `ModelReply`. Provider-specific configuration and transport belong in that adapter; evidence collection, report contracts, and application features should not depend on its brand or model name.
 
-Today, the CLI's provider wiring selects this implementation. Arbitrary-provider selection in the dashboard is not implemented. Changing to another provider requires implementing/selecting its adapter, not merely putting an unrelated endpoint in this configuration. Changing providers must not introduce hidden fallback, bypass external-processing approval, or drop run provenance.
+Today, the CLI and manual-triage worker's provider wiring select this implementation. Arbitrary-provider selection in the dashboard is not implemented. Changing to another provider requires implementing/selecting its adapter, not merely putting an unrelated endpoint in this configuration. Changing providers must not introduce hidden fallback, bypass external-processing approval, or drop run provenance.
 
 Saved analysis artifacts retain the actual served model, token usage, prompt version, and timing. Those fields identify how a particular report was produced; they are not platform features or marketing claims. See [report workflow](../investigation-reports.md) for the provider-independent contract and safety limits.

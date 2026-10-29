@@ -31,12 +31,12 @@ Browser → Caddy HTTPS → Next.js
 ```
 
 - **Next.js:** public landing page and authenticated SOC interface. No credentials or model calls in browser code.
-- **Python API:** authenticated connection onboarding, alert queries, source inspection, and session management.
-- **Worker:** checkpointed alert ingestion using the existing Wazuh adapter. No model calls yet.
-- **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, and audit events. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
+- **Python API:** authenticated connection onboarding, alert queries, source inspection, sessions, and manual investigation/approval routes. No model credentials or calls.
+- **Worker:** checkpointed alert ingestion plus an independent manual-triage consumer using the existing collector and Analyst. Only explicitly approved attempts can make model calls.
+- **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, audit events, investigation jobs/attempts, saved evidence, candidate reports, and provenance. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
 - **Docker Compose:** separate application services and persistent database volume. Existing Caddy provides HTTPS at `corvus.0xbenzo.dev`. No public database/indexer ports, Docker socket, or root application access.
 
-The first slice covers connection → ingestion → storage → alert inspection. Manual Analyst triage is next. See the [deployment guide](deployment.md) for Docker operations and current limits.
+The application covers connection → ingestion → alert inspection → bounded collection → explicit approval → one Analyst request → preserved advisory report. See [manual triage](manual-triage.md) for durable state/recovery and the [deployment guide](deployment.md) for Docker operations and current limits.
 
 ## Target multi-agent workflow
 
@@ -54,13 +54,13 @@ Alert intake → Correlation ↔ Analyst → Policy / human approval → Contain
 | --- | --- | --- |
 | Alert intake | Preserve detections and native identity; make alerts available for investigation | Live |
 | Correlation agent | Propose related alert/evidence sets; respond to scoped Analyst requests | Planned |
-| Analyst agent | Own the investigation, request scoped enrichment, and produce an evidence-linked assessment | Single-pass core available; orchestration pending |
+| Analyst agent | Own the investigation, request scoped enrichment, and produce an evidence-linked assessment | Single-pass core and manual queue triage available; orchestration pending |
 | Intel agent | Return sourced, time-aware indicator/behavior context to the Analyst | Planned |
 | Policy / approval | Validate the exact action and target; require authorization outside the models | Planned; this is code/human authority, not another agent |
 | Containment agent | Execute only an approved, scoped plan with separate response credentials | Planned |
 | Verification agent | Check fresh post-action evidence independently; return success, failure, or unknown outcome | Planned |
 
-Agent handoffs are structured tasks bound to a case and evidence references, not unrestricted commands between models. Findings, requested capabilities, tool outcomes, approvals, and budgets belong to the shared investigation record. PostgreSQL currently stores alerts, connections, sessions, and audit events; shared case/task orchestration is not implemented yet.
+Agent handoffs are structured tasks bound to a case and evidence references, not unrestricted commands between models. Findings, requested capabilities, tool outcomes, approvals, and budgets belong to the shared investigation record. PostgreSQL stores alerts, connections, sessions, audit events, and manual investigation attempts; shared case/task orchestration is not implemented yet.
 
 The Analyst can request correlation or intel work without granting either role response authority. Containment cannot bypass policy, and an executor acknowledgment is not proof of containment. Verification returns outcome evidence to the case and Analyst; follow-up actions and rollback still require authorization. Automatic triage never implies automatic containment.
 
@@ -76,12 +76,12 @@ Poll `wazuh-alerts-*` across all agents and severities using dedicated reader cr
 
 Timestamp polling has a bounded late-arrival horizon; it cannot guarantee capture of arbitrarily backdated documents. Show sync health and lag. Do not modify Wazuh detections just to make a demonstration pass.
 
-## Analyst modes — next slice
+## Analyst modes
 
-The Analyst pipeline is deterministic: queue → bounded evidence collection → one model request → validation → preserved candidate → human review.
+The manual Analyst pipeline is deterministic: queue → bounded evidence collection → inspect/approve saved input → one model request → validation → preserved candidate requiring human review. A recorded human-review lifecycle is not implemented.
 
 - **Manual is the default.** Each request explicitly acknowledges external evidence processing.
-- **Auto is opt-in per connection.** Require separate consent, a minimum rule level, and hourly/global daily request limits. Do not process a historical backlog merely because auto was enabled.
+- **Auto is planned, not implemented.** It must be opt-in per connection with separate consent, a minimum rule level, and hourly/global daily request limits. Do not process a historical backlog merely because auto was enabled.
 - Permit one active job per alert. Preserve failures and retries as separate attempts.
 - Allow a short post-alert collection window. Partial evidence cannot become benign clearance.
 - Do not automatically retry a model call after a crash or ambiguous timeout; it may already have been billed.

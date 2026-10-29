@@ -1,4 +1,4 @@
-"""Authenticated API for the live alert queue. There are no model/action routes yet."""
+"""Authenticated alert queue and manual investigations. No model credentials or calls here."""
 
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
@@ -14,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from ..errors import BackendError, ConfigError
 from . import alerts, auth, connections
 from .database import audit, connect, initialize
+from .investigations import service as triage
 from .settings import Settings
 
 
@@ -32,6 +33,12 @@ class ConnectionInput(Credentials):
 class ConnectionState(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: StrictBool
+
+
+class ProcessingApproval(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    allow_external: StrictBool
+    evidence_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 def create_app(settings):
@@ -206,6 +213,37 @@ def create_app(settings):
         if not row:
             raise HTTPException(404, "Alert not found")
         return row
+
+    @app.get("/api/alerts/{identifier}/investigations")
+    def investigations(identifier: UUID, current=Depends(user)):
+        with connect(settings) as db:
+            return {"attempts": triage.history(db, identifier)}
+
+    @app.post("/api/alerts/{identifier}/investigations", status_code=201)
+    def investigate(identifier: UUID, current=Depends(user)):
+        with connect(settings) as db:
+            return {"id": triage.request_collection(db, identifier, current["id"])}
+
+    @app.get("/api/alerts/{identifier}/investigations/{attempt_id}")
+    def investigation(identifier: UUID, attempt_id: UUID, current=Depends(user)):
+        with connect(settings) as db:
+            return triage.detail(db, identifier, attempt_id)
+
+    @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/approve")
+    def approve_investigation(
+        identifier: UUID, attempt_id: UUID, body: ProcessingApproval, current=Depends(user)
+    ):
+        if not body.allow_external:
+            raise HTTPException(400, "Explicit external-processing approval is required")
+        with connect(settings) as db:
+            triage.approve(db, identifier, attempt_id, body.evidence_digest, current["id"])
+        return {"ok": True}
+
+    @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/cancel")
+    def cancel_investigation(identifier: UUID, attempt_id: UUID, current=Depends(user)):
+        with connect(settings) as db:
+            triage.cancel(db, identifier, attempt_id, current["id"])
+        return {"ok": True}
 
     return app
 

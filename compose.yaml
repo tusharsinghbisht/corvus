@@ -62,6 +62,9 @@ services:
   worker:
     <<: *server
     command: [python, -m, corvus.server.worker]
+    environment:
+      CORVUS_REVISION: ${CORVUS_REVISION:-unknown}
+    stop_grace_period: 210s
     mem_limit: 512m
     cpus: 0.75
     healthcheck:

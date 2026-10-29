@@ -27,7 +27,7 @@ corvus = "corvus.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"corvus.server" = ["schema.sql"]
+"corvus.server" = ["schema.sql", "migrations/*.sql"]
 
 [tool.ruff]
 target-version = "py311"

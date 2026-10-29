@@ -1,6 +1,10 @@
 """Isolated browser-test backend. Test records never enter the live application database."""
 
+import json
 import os
+from pathlib import Path
+from threading import Event, Thread
+from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
@@ -9,9 +13,12 @@ from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from test_ingestion import document, settings
 
+from corvus.providers import ModelReply
 from corvus.server.api import create_app
 from corvus.server.database import connect, initialize
 from corvus.server.ingestion import insert_alert
+from corvus.server.investigations.worker import run_once
+from corvus.storage import load_json
 
 
 def main():
@@ -41,14 +48,53 @@ def main():
                         '<img src=x onerror="window.corvusInjection=true">'
                     )
                 insert_alert(db, connection_id, item)
-        uvicorn.run(
-            create_app(config),
-            host="127.0.0.1",
-            port=8769,
-            access_log=False,
-            server_header=False,
-            proxy_headers=False,
-        )
+        # The real durable worker/state machine, but offline evidence and a fake
+        # model. These services cannot collect live data or make external calls.
+        root = Path(__file__).resolve().parents[1] / "evaluations"
+        bundle = load_json(root / "fixtures/001.json")
+        report = load_json(root / "reference-reports/001.json")
+        report["findings"][0]["statement"] += ' <img src=x onerror="window.corvusInjection=true">'
+
+        class Model:
+            calls = 0
+
+            def complete(self, messages):
+                self.calls += 1
+                return ModelReply(
+                    json.dumps(report)
+                    if self.calls == 1
+                    else "invalid candidate <script>untrusted</script>",
+                    "browser-test-runtime",
+                    {},
+                )
+
+        model = Model()
+        stop = Event()
+
+        def consume():
+            while not stop.is_set():
+                run_once(
+                    config,
+                    collector=lambda *args, **kwargs: bundle,
+                    model_factory=lambda: (model, {"provider": "offline-browser-test"}),
+                )
+                stop.wait(0.2)
+
+        with patch("corvus.server.investigations.worker.adapter", return_value=None):
+            consumer = Thread(target=consume, daemon=True)
+            consumer.start()
+            try:
+                uvicorn.run(
+                    create_app(config),
+                    host="127.0.0.1",
+                    port=8769,
+                    access_log=False,
+                    server_header=False,
+                    proxy_headers=False,
+                )
+            finally:
+                stop.set()
+                consumer.join(30)
     finally:
         with psycopg.connect(base) as db:
             db.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))

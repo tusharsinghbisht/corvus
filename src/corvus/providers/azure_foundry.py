@@ -135,24 +135,8 @@ class AzureFoundryClient:
                 data = parse_json(raw)
                 choice = data["choices"][0]
                 message = choice["message"]
-                if choice.get("finish_reason") != "stop":
-                    raise ModelError(
-                        "incomplete_model_response",
-                        "Model did not finish normally; increase the explicit token budget or investigate the provider",
-                    )
-                if message.get("tool_calls") or message.get("function_call"):
-                    raise ModelError(
-                        "unexpected_model_tool_call",
-                        "This analyst has no tool-execution capability",
-                    )
-                content = message["content"]
-                model = data["model"]
-                if (
-                    not isinstance(content, str)
-                    or not content.strip()
-                    or not isinstance(model, str)
-                ):
-                    raise ValueError("Missing model content")
+                content = message.get("content")
+                model = data.get("model")
                 usage = {
                     key: value
                     for key, value in data.get("usage", {}).items()
@@ -160,11 +144,30 @@ class AzureFoundryClient:
                     and type(value) is int
                     and value >= 0
                 }
+                reply = (
+                    ModelReply(content, model, usage)
+                    if isinstance(content, str) and content.strip() and isinstance(model, str)
+                    else None
+                )
+                if choice.get("finish_reason") != "stop":
+                    raise ModelError(
+                        "incomplete_model_response",
+                        "Model did not finish normally; increase the explicit token budget or investigate the provider",
+                        reply=reply,
+                    )
+                if message.get("tool_calls") or message.get("function_call"):
+                    raise ModelError(
+                        "unexpected_model_tool_call",
+                        "This analyst has no tool-execution capability",
+                        reply=reply,
+                    )
+                if reply is None:
+                    raise ValueError("Missing model content")
             except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
                 raise ModelError(
                     "invalid_model_response", "Azure returned an invalid completion envelope"
                 ) from exc
-            return ModelReply(content, model, usage)
+            return reply
         except (OSError, http.client.HTTPException) as exc:
             raise ModelError(
                 "model_connection_failed",

@@ -4,9 +4,9 @@ An alert investigation service. Corvus connects security detections to supportin
 
 ## Status
 
-**Working:** read-only Wazuh adapter, evidence collector, single-pass Analyst, report validation, and offline regression tests. The Next.js application adds authenticated Wazuh onboarding, PostgreSQL-backed alert ingestion, filtering/pagination, sync health, and original-source inspection. See [deployment](docs/deployment.md).
+**Working:** authenticated Wazuh onboarding, checkpointed alert ingestion, filtering/pagination, sync health, and source inspection. Manual investigations add bounded evidence collection, explicit per-bundle external-processing approval, one Analyst request, validated advisory reports, citations, and durable attempt history. See [manual triage](docs/manual-triage.md) and [deployment](docs/deployment.md).
 
-**Next:** manual Analyst triage from the alert queue, followed by explicitly bounded automatic mode. The current ingestion worker makes no model calls.
+**Not automatic:** ingestion never queues model requests. Automatic triage, human-review lifecycle, and response execution are not implemented.
 
 **Target architecture:** correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph is planned for workflow orchestration; these additional agents are not active yet. See [architecture](docs/architecture.md).
 
@@ -43,7 +43,9 @@ src/corvus/
   adapters/       Backend-specific retrieval and field mapping
   providers/      Model-provider interface and transport adapters
   reporting/      Report contract, evidence binding, validation
-  server/         Authentication, connections, PostgreSQL, ingestion
+  server/         Authenticated API, connections, ingestion, worker
+    investigations/ Durable manual triage state and analysis runtime
+    migrations/   Ordered PostgreSQL schema upgrades
   evidence.py     Backend-independent evidence collection
   analyst.py      Single-pass advisory analysis
   cli.py          Local collection and analysis commands
@@ -53,6 +55,8 @@ infra/            Docker images, proxy configuration, lab helpers
 tests/            Regression and boundary tests
 evaluations/      Offline synthetic fixtures and scoring
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for module boundaries, tests, and the development workflow.
 
 ## GitHub workflow
 
@@ -77,6 +81,7 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 - [Deployment and operations](docs/deployment.md)
 - [Architecture](docs/architecture.md)
 - [Collector setup and CLI](docs/read-only-cli.md)
+- [Manual investigations and approval](docs/manual-triage.md)
 - [Analyst configuration and report validation](docs/investigation-reports.md)
 - [Wazuh lab operations](docs/lab-setup.md)
 - [Archive collection and retention](docs/telemetry-archives.md)

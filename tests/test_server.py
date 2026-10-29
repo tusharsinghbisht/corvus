@@ -22,7 +22,7 @@ from corvus.server.ingestion import insert_alert, poll
 @unittest.skipUnless(
     os.environ.get("CORVUS_TEST_DATABASE_URL"), "Disposable PostgreSQL URL not configured"
 )
-class ServerTests(unittest.TestCase):
+class ServerDatabaseCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.base = os.environ["CORVUS_TEST_DATABASE_URL"]
@@ -77,6 +77,8 @@ class ServerTests(unittest.TestCase):
             )
             return db.execute("SELECT * FROM connections WHERE id=%s", (identifier,)).fetchone()
 
+
+class ServerTests(ServerDatabaseCase):
     def test_data_requires_authentication_and_mutations_require_origin(self):
         for path in [
             "/api/alerts",

@@ -84,6 +84,98 @@ test("connection controls and logout", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("manual triage requires bundle approval and preserves report and failed candidate history", async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole("searchbox", { name: "Search alerts" }).fill("<img");
+  await page.locator(".alert-title").click();
+  const investigation = page.getByRole("region", {
+    name: "Manual Analyst investigation",
+  });
+  await investigation
+    .getByRole("button", { name: "Collect evidence", exact: true })
+    .click();
+  await expect(investigation.getByRole("status")).toContainText(
+    "Awaiting your approval",
+    { timeout: 90000 },
+  );
+  const approve = investigation.getByRole("button", {
+    name: "Approve one Analyst request",
+  });
+  await expect(approve).toBeDisabled();
+  await investigation
+    .getByText("Inspect exact evidence selected for external processing", {
+      exact: true,
+    })
+    .click();
+  await expect(investigation.locator(".saved-evidence pre")).toContainText(
+    "evidence_digest",
+  );
+  await expect(investigation.locator(".saved-evidence pre")).toContainText(
+    "untrusted DATA",
+  );
+  await investigation.getByRole("checkbox").check();
+  await page.reload();
+  await expect(approve).toBeDisabled();
+  await investigation.getByRole("checkbox").check();
+  await approve.click();
+  await expect(
+    investigation.getByRole("heading", { name: "Findings", exact: true }),
+  ).toBeVisible({ timeout: 90000 });
+  await expect(investigation.getByRole("status")).toContainText(
+    "human review required",
+  );
+  await expect(investigation.locator(".investigation-report")).toContainText(
+    "<img src=x",
+  );
+  await expect(page.locator('img[src="x"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as Record<string, unknown>).corvusInjection,
+    ),
+  ).toBeUndefined();
+  await investigation.locator(".citations summary").first().click();
+  await expect(investigation.locator(".citations pre").first()).toContainText(
+    "reference",
+  );
+  await investigation
+    .getByText("Attempt provenance and approval record", { exact: true })
+    .click();
+  await expect(investigation.locator("pre").last()).toContainText(
+    "approved_digest",
+  );
+  await investigation
+    .getByRole("button", { name: "Collect new attempt" })
+    .click();
+  await expect(investigation.getByRole("status")).toContainText(
+    "Awaiting your approval",
+    { timeout: 90000 },
+  );
+  await investigation.getByRole("checkbox").check();
+  await approve.click();
+  await expect(investigation.getByRole("status")).toContainText(
+    "Candidate rejected",
+    { timeout: 90000 },
+  );
+  await expect(
+    investigation.getByRole("heading", { name: "Findings", exact: true }),
+  ).toHaveCount(0);
+  await investigation
+    .getByText("Original model reply · untrusted text", { exact: true })
+    .click();
+  await expect(
+    investigation
+      .locator("pre")
+      .filter({ hasText: "invalid candidate" })
+      .last(),
+  ).toContainText("<script>untrusted</script>");
+  await investigation.getByLabel("Attempt history").selectOption({ index: 1 });
+  await expect(
+    investigation.getByRole("heading", { name: "Findings", exact: true }),
+  ).toBeVisible();
+});
+
 test("mobile workspace stays within the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);

@@ -1,0 +1,7 @@
+# Optional worker-only model integration. Never add this credential mount to api/web.
+services:
+  worker:
+    environment:
+      CORVUS_FOUNDRY_CONFIG: /run/corvus/analyst.json
+    volumes:
+      - ${CORVUS_CONFIG_DIR}/analyst.json:/run/corvus/analyst.json:ro

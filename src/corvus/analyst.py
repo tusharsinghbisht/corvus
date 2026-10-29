@@ -61,7 +61,7 @@ def prepare_report(bundle):
     }
 
 
-def analyze(bundle, model: AnalystModel):
+def analyze(bundle, model: AnalystModel, *, on_reply=None):
     prepared = prepare_report(bundle)
     messages = [
         {"role": "system", "content": prepared["instructions"]},
@@ -77,6 +77,9 @@ def analyze(bundle, model: AnalystModel):
     started_at = datetime.now(timezone.utc)
     started = monotonic()
     reply = model.complete(messages)
+    # Durable runtimes save the untouched candidate before parsing/validation.
+    if on_reply is not None:
+        on_reply(reply)
     raw_output = None
     try:
         report = parse_json(reply.content)

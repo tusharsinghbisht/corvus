@@ -154,6 +154,8 @@ class FoundryClientTests(unittest.TestCase):
             with self.assertRaises(ModelError) as caught:
                 self.client.complete(self.messages)
             self.assertEqual(caught.exception.code, code)
+            self.assertEqual(caught.exception.reply.content, "{}")
+            self.assertEqual(caught.exception.reply.model, "DeepSeek-V4-Flash")
 
     def test_invalid_envelopes_and_connection_errors_are_explicit(self):
         for payload in (b"not JSON", b"[]", b'{"choices":[]}', completion(usage=None)):
