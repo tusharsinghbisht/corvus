@@ -1,7 +1,7 @@
 import { test, expect, Page } from "@playwright/test";
 
 // Browser-only layout fixtures. No records are inserted or served by the product.
-async function workspace(page: Page) {
+async function workspace(page: Page, count = 1) {
   const now = new Date().toISOString();
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -26,22 +26,20 @@ async function workspace(page: Page) {
       };
     else if (path === "/api/alerts")
       json = {
-        alerts: [
-          {
-            id: "00000000-0000-4000-8000-000000000002",
-            connection_id: "00000000-0000-4000-8000-000000000001",
-            timestamp: now,
-            received_at: now,
-            agent_id: "001",
-            agent_name: "ui-test-host",
-            rule_id: "100001",
-            rule_level: 12,
-            title: "UI layout fixture",
-            native_id: "layout-fixture",
-            native_index: "wazuh-alerts-ui-test",
-          },
-        ],
-        stats: { total: 1, high: 1, agents: 1 },
+        alerts: Array.from({ length: count }, (_, index) => ({
+          id: `00000000-0000-4000-8000-${String(index + 2).padStart(12, "0")}`,
+          connection_id: "00000000-0000-4000-8000-000000000001",
+          timestamp: now,
+          received_at: now,
+          agent_id: "001",
+          agent_name: "ui-test-host",
+          rule_id: "100001",
+          rule_level: 12,
+          title: "UI layout fixture",
+          native_id: `layout-fixture-${index}`,
+          native_index: "wazuh-alerts-ui-test",
+        })),
+        stats: { total: count, high: count, agents: 1 },
         next_cursor: null,
       };
     else
@@ -52,7 +50,7 @@ async function workspace(page: Page) {
     await route.fulfill({ json });
   });
   await page.goto("/soc");
-  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await expect(page.locator(".alert-title")).toHaveCount(count);
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -114,6 +112,70 @@ test("floating rounded black panels and persistent collapsible navigation", asyn
   ).toHaveAttribute("aria-expanded", "true");
   expect(errors).toEqual([]);
 });
+
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 1000, height: 700 },
+  { width: 390, height: 844 },
+  { width: 900, height: 420 },
+]) {
+  test(`workspace frame stays fixed while inner content scrolls at ${viewport.width}×${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await workspace(page, 50);
+    const content = page.getByRole("main", { name: "Workspace content" });
+    const frame = page.locator(".soc-main");
+    const header = page.locator(".topbar");
+    const footer = page.locator(".soc-footer");
+    const sidebar = page.locator("#workspace-sidebar");
+    const before = await Promise.all([
+      frame.boundingBox(),
+      header.boundingBox(),
+      footer.boundingBox(),
+      sidebar.boundingBox(),
+    ]);
+    expect(before[0]!.y + before[0]!.height).toBeLessThanOrEqual(
+      viewport.height - 9,
+    );
+    const bounds = await content.boundingBox();
+    await page.mouse.move(
+      bounds!.x + bounds!.width / 2,
+      bounds!.y + bounds!.height / 2,
+    );
+    await page.mouse.wheel(0, 700);
+    await expect
+      .poll(() => content.evaluate((node) => node.scrollTop))
+      .toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollHeight <= innerHeight + 1,
+      ),
+    ).toBe(true);
+    const after = await Promise.all([
+      frame.boundingBox(),
+      header.boundingBox(),
+      footer.boundingBox(),
+      sidebar.boundingBox(),
+    ]);
+    for (let index = 0; index < before.length; index++)
+      expect(after[index]).toEqual(before[index]);
+    await content.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    await content.focus();
+    await page.keyboard.press("PageDown");
+    await expect
+      .poll(() => content.evaluate((node) => node.scrollTop))
+      .toBeGreaterThan(0);
+    await page.getByRole("link", { name: "Connections", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Connections", exact: true }),
+    ).toBeVisible();
+    await expect.poll(() => content.evaluate((node) => node.scrollTop)).toBe(0);
+  });
+}
 
 test("mobile margins, curved workspace, and sidebar disclosure", async ({
   page,

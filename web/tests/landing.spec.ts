@@ -44,7 +44,7 @@ test("black theme, self-hosted font pair, isometric controls, and glass buttons"
   expect(external).toEqual([]);
 });
 
-test("architecture exploration, honest mode availability, and FAQ disclosure", async ({
+test("multi-agent architecture, planned orchestration, and FAQ disclosure", async ({
   page,
 }) => {
   const apiRequests: string[] = [];
@@ -61,8 +61,13 @@ test("architecture exploration, honest mode availability, and FAQ disclosure", a
     .filter({ hasText: "Analyze" })
     .click();
   await expect(page.locator(".architecture-detail")).toContainText(
-    "DeepSeek-V4-Flash",
+    "model-provider interface",
   );
+  await expect(page.locator("#stack .tech-card")).toHaveCount(5);
+  await expect(page.locator(".tech-card-planned")).toContainText("LangGraph");
+  await expect(page.locator(".tech-card-planned")).toContainText("Planned");
+  await expect(page.locator("#stack")).not.toContainText("Azure");
+  await expect(page.locator("#stack")).not.toContainText("DeepSeek");
   await page
     .getByRole("button", { name: "Live ingestion", exact: true })
     .click();
@@ -71,12 +76,22 @@ test("architecture exploration, honest mode availability, and FAQ disclosure", a
     .filter({ hasText: "PostgreSQL" })
     .click();
   await expect(page.locator(".architecture-detail")).toContainText("JSONB");
-  await page.getByRole("button", { name: "Automatic", exact: true }).click();
-  await expect(page.locator(".mode-switch")).toContainText(
-    "Planned · not enabled",
-  );
-  await page.getByRole("button", { name: "Manual", exact: true }).click();
-  await expect(page.locator(".mode-switch")).toContainText("dashboard next");
+  await page
+    .locator(".agent-map button")
+    .filter({ hasText: "Intel agent" })
+    .click();
+  await expect(page.locator(".agent-details")).toContainText("Planned");
+  await expect(page.locator(".agent-details")).toContainText("Analyst");
+  await page
+    .locator(".agent-map button")
+    .filter({ hasText: "Containment agent" })
+    .click();
+  await expect(page.locator(".agent-details")).toContainText("approved plan");
+  await expect(
+    page.getByText("THE NEXT LAYER: ANALYST IN YOUR QUEUE", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".landing")).not.toContainText("Azure");
+  await expect(page.locator(".landing")).not.toContainText("DeepSeek");
   await page
     .locator(".faq-list summary")
     .filter({ hasText: "Does Corvus replace Wazuh?" })

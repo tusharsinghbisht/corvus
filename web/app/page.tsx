@@ -10,20 +10,18 @@ import {
   Github,
   Layers3,
   LockKeyhole,
-  Network,
   Radio,
   ShieldCheck,
+  Workflow,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { AgentArchitecture } from "@/components/agent-architecture";
 import {
   InvestigationScene,
   EvidenceIllustration,
   StorageIllustration,
 } from "@/components/isometric";
-import {
-  ArchitectureExplorer,
-  AnalystModes,
-} from "@/components/landing-explorer";
+import { ArchitectureExplorer } from "@/components/landing-explorer";
 
 const stack = [
   {
@@ -48,25 +46,19 @@ const stack = [
       "Transactional checkpoints, indexed alert fields, original JSONB payloads, sessions, and audit events. A foundation for later operational analytics.",
   },
   {
-    name: "Wazuh · OpenSearch",
-    layer: "THE SECURITY BACKEND",
-    icon: Radio,
-    description:
-      "Keep your existing detections and telemetry pipeline. Read alerts and retrieve supporting context through documented indexer APIs.",
-  },
-  {
-    name: "Azure Foundry",
-    layer: "THE ANALYST PROVIDER",
-    icon: Network,
-    description:
-      "The configured DeepSeek-V4-Flash deployment powers the advisory Analyst core. No automatic model substitution or hidden tool execution.",
-  },
-  {
     name: "Docker · Caddy",
     layer: "THE DEPLOYMENT",
     icon: LockKeyhole,
     description:
       "Separate web, API, worker, and database containers. HTTPS at the edge, private service routing, and server-side secrets.",
+  },
+  {
+    name: "LangGraph",
+    layer: "WORKFLOW ORCHESTRATION",
+    icon: Workflow,
+    planned: true,
+    description:
+      "Planned for explicit agent handoffs, durable workflow state, checkpointing, and human-approval pauses. It is not part of the current runtime. Permissions and response policy stay enforced by Corvus outside the agents.",
   },
 ];
 
@@ -156,10 +148,10 @@ export default function Home() {
           NOT ANOTHER SIEM.
         </span>
         <div>
-          <span>Wazuh</span>
           <span>Next.js</span>
+          <span>TypeScript</span>
+          <span>FastAPI</span>
           <span>PostgreSQL</span>
-          <span>Azure Foundry</span>
           <span>Docker</span>
         </div>
       </div>
@@ -280,17 +272,25 @@ export default function Home() {
       >
         <div className="section-heading">
           <div>
-            <div className="eyebrow">FOLLOW THE DATA</div>
+            <div className="eyebrow">THE SOC ARCHITECTURE</div>
             <h2>
-              Follow the signal.
+              An investigation workflow.
               <br />
-              Inspect every layer.
+              Not an isolated agent.
             </h2>
           </div>
           <p>
-            Explore where an alert goes, what gets stored,
+            Correlation, investigation, intelligence, and response.
             <br />
-            and where model processing begins—and ends.
+            Shared evidence. Explicit handoffs. Clear authority.
+          </p>
+        </div>
+        <AgentArchitecture />
+        <div className="implemented-flow-heading">
+          <span className="eyebrow">IMPLEMENTED DATA PATHS</span>
+          <p>
+            Explore the live ingestion path and the standalone Analyst core
+            below.
           </p>
         </div>
         <ArchitectureExplorer />
@@ -370,25 +370,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="marketing-section marketing-container">
-        <div className="section-heading">
-          <div>
-            <div className="eyebrow">THE NEXT LAYER: ANALYST IN YOUR QUEUE</div>
-            <h2>
-              One Analyst.
-              <br />
-              Two deliberate ways to work.
-            </h2>
-          </div>
-          <p>
-            The core investigation path stays the same.
-            <br />
-            You decide how an alert enters it.
-          </p>
-        </div>
-        <AnalystModes />
-      </section>
-
       <section id="stack" className="marketing-section marketing-container">
         <div className="section-heading">
           <div>
@@ -409,12 +390,20 @@ export default function Home() {
           {stack.map((item) => {
             const Icon = item.icon;
             return (
-              <article key={item.name} className="tech-card glass-panel">
+              <article
+                key={item.name}
+                className={`tech-card glass-panel${"planned" in item ? " tech-card-planned" : ""}`}
+              >
                 <div>
                   <Icon size={22} />
                   <span>{item.layer}</span>
                 </div>
-                <h3>{item.name}</h3>
+                <h3>
+                  {item.name}
+                  {"planned" in item && (
+                    <span className="availability-tag">Planned</span>
+                  )}
+                </h3>
                 <p>{item.description}</p>
               </article>
             );

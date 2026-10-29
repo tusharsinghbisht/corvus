@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -22,6 +22,10 @@ export function Shell({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const content = useRef<HTMLElement>(null);
+  useEffect(() => {
+    content.current?.scrollTo({ top: 0, left: 0 });
+  }, [path]);
   useEffect(() => {
     try {
       setCollapsed(localStorage.getItem(SIDEBAR_PREFERENCE) === "true");
@@ -166,7 +170,14 @@ export function Shell({ children }: { children: ReactNode }) {
             {error}
           </div>
         )}
-        <div className="soc-content">{children}</div>
+        <main
+          className="soc-content"
+          ref={content}
+          tabIndex={0}
+          aria-label="Workspace content"
+        >
+          {children}
+        </main>
         <footer className="soc-footer">
           <span>Original sources. Explicit uncertainty.</span>
           <span>Corvus · read-only</span>

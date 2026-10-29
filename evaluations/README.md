@@ -60,4 +60,4 @@ Evaluation makes no network/model calls. Missing or unreadable candidate files f
 
 The automated checks compare disposition, citation integrity, required finding evidence, required uncertainty codes, and forbidden recommendation categories. A candidate can cite all expected events while explaining them incorrectly. **Human review is required even after every check passes.** The harness emits review questions, not automatic semantic approval.
 
-Keep candidate outputs under ignored `artifacts/`. Do not overwrite failed runs or quietly exclude them from comparisons. The latest recorded Azure batch passed 2/3 automated cases, with an unsupported containment recommendation in case 003; see the [report guide](../docs/investigation-reports.md) for details and limitations.
+Keep candidate outputs under ignored `artifacts/`. Do not overwrite failed runs or quietly exclude them from comparisons. The latest recorded model batch passed 2/3 automated cases, with an unsupported containment recommendation in case 003; see the [report guide](../docs/investigation-reports.md) for details and limitations.

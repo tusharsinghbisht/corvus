@@ -79,10 +79,10 @@ const flows = {
       },
       {
         name: "Analyze",
-        subtitle: "Azure Foundry",
+        subtitle: "Configured model",
         icon: Braces,
         detail:
-          "One request to the configured DeepSeek-V4-Flash deployment produces a structured advisory report. The model has no endpoint tools and executes no response actions.",
+          "One request through the model-provider interface produces a structured advisory report. The model has no endpoint tools and executes no response actions.",
       },
       {
         name: "Validate",
@@ -167,83 +167,6 @@ export function ArchitectureExplorer() {
           <p>{node.detail}</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-export function AnalystModes() {
-  const [mode, setMode] = useState<"manual" | "auto">("manual");
-  return (
-    <div className="mode-explorer glass-panel">
-      <div className="mode-switch">
-        <div
-          className="segmented-control"
-          role="group"
-          aria-label="Explore Analyst operating modes"
-        >
-          <button
-            aria-pressed={mode === "manual"}
-            onClick={() => setMode("manual")}
-          >
-            Manual
-          </button>
-          <button
-            aria-pressed={mode === "auto"}
-            onClick={() => setMode("auto")}
-          >
-            Automatic
-          </button>
-        </div>
-        <span className="availability-tag">
-          {mode === "manual"
-            ? "Analyst core available · dashboard next"
-            : "Planned · not enabled"}
-        </span>
-      </div>
-      <div className="mode-content" aria-live="polite">
-        <div>
-          <span className="eyebrow">
-            {mode === "manual"
-              ? "YOU CHOOSE THE STARTING POINT"
-              : "EXPLICIT SCOPE, EXPLICIT LIMITS"}
-          </span>
-          <h3>
-            {mode === "manual"
-              ? "Investigate deliberately."
-              : "Automate the handoff. Not the authority."}
-          </h3>
-          <p>
-            {mode === "manual"
-              ? "Choose an alert, review the evidence-processing boundary, and request an investigation. The Analyst gathers scoped context and returns a report for review."
-              : "The planned automatic mode will enqueue only eligible new alerts after a connection is explicitly opted in. Severity thresholds and request budgets will limit what gets processed."}
-          </p>
-        </div>
-        <ol>
-          {(mode === "manual"
-            ? [
-                "Select a real alert",
-                "Approve selected evidence processing",
-                "Collect context and analyze",
-                "Review findings and uncertainty",
-              ]
-            : [
-                "Explicitly enable per connection",
-                "Set eligibility and request limits",
-                "Queue eligible new alerts only",
-                "Keep human review and audit history",
-              ]
-          ).map((item, index) => (
-            <li key={item}>
-              <span>0{index + 1}</span>
-              {item}
-            </li>
-          ))}
-        </ol>
-      </div>
-      <p className="mode-footnote">
-        These controls explain the workflow; they do not change your connection
-        settings or send evidence anywhere.
-      </p>
     </div>
   );
 }

@@ -1,12 +1,14 @@
 # Corvus
 
-An alert investigation service. Wazuh supplies detections and telemetry; Corvus collects supporting evidence and produces advisory triage reports using Azure Foundry's `DeepSeek-V4-Flash`.
+An alert investigation service. Corvus connects security detections to supporting evidence, investigation history, and advisory triage. Wazuh is the first security backend.
 
 ## Status
 
 **Working:** read-only Wazuh adapter, evidence collector, single-pass Analyst, report validation, and offline regression tests. The Next.js application adds authenticated Wazuh onboarding, PostgreSQL-backed alert ingestion, filtering/pagination, sync health, and original-source inspection. See [deployment](docs/deployment.md).
 
 **Next:** manual Analyst triage from the alert queue, followed by explicitly bounded automatic mode. The current ingestion worker makes no model calls.
+
+**Target architecture:** correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph is planned for workflow orchestration; these additional agents are not active yet. See [architecture](docs/architecture.md).
 
 The earlier saved-artifact dashboard has been retired. Synthetic fixtures remain development tests, not product data. There is no response executor or autonomous investigation loop.
 
@@ -24,7 +26,7 @@ python3 -m venv .venv
 .venv/bin/ruff format --check src tests infra/wazuh evaluations
 ```
 
-Collection uses a private configuration file and dedicated read-only credentials. The analyst uses a separate Azure configuration. Neither belongs in Git.
+Collection uses a private configuration file and dedicated read-only credentials. The Analyst uses separate model-provider configuration. Neither belongs in Git.
 
 ```bash
 corvus alerts --agent-id 001 --since-minutes 30 --limit 10
@@ -39,7 +41,7 @@ corvus analyze --bundle REVIEWED_BUNDLE --out artifacts/analyses/report.json --a
 ```text
 src/corvus/
   adapters/       Backend-specific retrieval and field mapping
-  providers/      Azure model transport
+  providers/      Model-provider interface and transport adapters
   reporting/      Report contract, evidence binding, validation
   server/         Authentication, connections, PostgreSQL, ingestion
   evidence.py     Backend-independent evidence collection

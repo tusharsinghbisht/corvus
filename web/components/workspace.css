@@ -2,9 +2,12 @@
   --sidebar-width: 232px;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 16px;
-  align-items: start;
-  min-height: 100dvh;
+  align-items: stretch;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   padding: 18px;
   background:
     radial-gradient(
@@ -21,10 +24,9 @@
   --sidebar-width: 76px;
 }
 .sidebar {
-  position: sticky;
-  top: 18px;
-  height: calc(100dvh - 36px);
-  min-height: 480px;
+  position: relative;
+  height: 100%;
+  min-height: 0;
   padding: 25px 18px 20px;
   display: flex;
   flex-direction: column;
@@ -42,7 +44,8 @@
     0 20px 60px #0003;
   backdrop-filter: blur(24px);
   z-index: 10;
-  overflow: hidden;
+  overflow: hidden auto;
+  scrollbar-width: thin;
 }
 .sidebar > .brand {
   margin-left: 4px;
@@ -190,7 +193,8 @@
 }
 .soc-main {
   min-width: 0;
-  min-height: calc(100dvh - 36px);
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
@@ -203,6 +207,7 @@
 }
 .topbar {
   min-height: 67px;
+  flex-shrink: 0;
   padding: 0 29px;
   border-bottom: 1px solid var(--line);
   display: flex;
@@ -267,9 +272,19 @@
   width: 100%;
   margin-inline: auto;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+}
+.soc-content:focus-visible {
+  outline-offset: -4px;
 }
 .soc-footer {
   padding: 18px 29px;
+  flex-shrink: 0;
   border-top: 1px solid var(--line);
   color: #666670;
   font-size: 9px;
@@ -829,12 +844,7 @@ tbody tr:hover {
     padding: 15px;
   }
   .sidebar {
-    top: 15px;
-    height: calc(100dvh - 30px);
     padding-inline: 14px;
-  }
-  .soc-main {
-    min-height: calc(100dvh - 30px);
   }
   .soc-content {
     padding-inline: 24px;
@@ -865,8 +875,12 @@ tbody tr:hover {
   .soc,
   .soc.sidebar-collapsed {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 11px;
     padding: 10px;
+  }
+  .soc.sidebar-collapsed {
+    grid-template-rows: minmax(0, 1fr);
   }
   .sidebar {
     position: static;
@@ -910,7 +924,6 @@ tbody tr:hover {
     display: none;
   }
   .soc-main {
-    min-height: calc(100dvh - 20px);
     border-radius: 20px;
   }
   .topbar {

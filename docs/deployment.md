@@ -23,7 +23,7 @@ docker compose --env-file ~/.config/corvus/app/deploy.env build api web
 docker compose --env-file ~/.config/corvus/app/deploy.env up -d --wait
 ```
 
-The provisioner verifies the pinned Wazuh CA and creates private configuration under `~ubuntu/.config/corvus/app/`. It refuses to replace existing secrets. Reader credentials are entered through the connection form and encrypted in PostgreSQL with a separate server-held key. Azure credentials are not installed in this deployment yet.
+The provisioner verifies the pinned Wazuh CA and creates private configuration under `~ubuntu/.config/corvus/app/`. It refuses to replace existing secrets. Reader credentials are entered through the connection form and encrypted in PostgreSQL with a separate server-held key. Model-provider credentials are not installed in this deployment yet.
 
 Add the versioned `infra/caddy/corvus.caddy` site block to the existing `/opt/wazuh-docker/single-node/Caddyfile`, preserving the Wazuh site. Back up the original first; validate with `caddy validate --config /etc/caddy/Caddyfile` inside the Caddy container before reloading it. Do not restart or recreate the Wazuh stack just to deploy Corvus. DNS for `corvus.0xbenzo.dev` must point to the VM and public port 443 must be reachable for HTTPS issuance.
 
