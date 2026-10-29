@@ -178,10 +178,6 @@ export function Shell({ children }: { children: ReactNode }) {
         >
           {children}
         </main>
-        <footer className="soc-footer">
-          <span>Original sources. Explicit uncertainty.</span>
-          <span>Corvus · read-only</span>
-        </footer>
       </div>
     </div>
   );

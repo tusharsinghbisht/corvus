@@ -51,6 +51,7 @@ async function workspace(page: Page, count = 1) {
   });
   await page.goto("/soc");
   await expect(page.locator(".alert-title")).toHaveCount(count);
+  await expect(page.locator(".soc-main footer")).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -127,12 +128,10 @@ for (const viewport of [
     const content = page.getByRole("main", { name: "Workspace content" });
     const frame = page.locator(".soc-main");
     const header = page.locator(".topbar");
-    const footer = page.locator(".soc-footer");
     const sidebar = page.locator("#workspace-sidebar");
     const before = await Promise.all([
       frame.boundingBox(),
       header.boundingBox(),
-      footer.boundingBox(),
       sidebar.boundingBox(),
     ]);
     expect(before[0]!.y + before[0]!.height).toBeLessThanOrEqual(
@@ -156,7 +155,6 @@ for (const viewport of [
     const after = await Promise.all([
       frame.boundingBox(),
       header.boundingBox(),
-      footer.boundingBox(),
       sidebar.boundingBox(),
     ]);
     for (let index = 0; index < before.length; index++)

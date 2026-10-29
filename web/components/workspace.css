@@ -282,16 +282,6 @@
 .soc-content:focus-visible {
   outline-offset: -4px;
 }
-.soc-footer {
-  padding: 18px 29px;
-  flex-shrink: 0;
-  border-top: 1px solid var(--line);
-  color: #666670;
-  font-size: 9px;
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-}
 .page-heading {
   display: flex;
   align-items: center;
@@ -1074,11 +1064,6 @@ tbody tr:hover {
   .source-panel pre {
     padding: 18px;
     font-size: 10px;
-  }
-  .soc-footer {
-    padding: 17px;
-    font-size: 8px;
-    gap: 15px;
   }
   .context-note {
     font-size: 9px;
