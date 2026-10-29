@@ -42,6 +42,8 @@ Read `web/AGENTS.md` and the installed Next.js guides before editing frontend co
 
 Database tests require `CORVUS_TEST_DATABASE_URL` pointing to a **disposable** PostgreSQL database, never the live database. Use the authorized VM for database services; do not install PostgreSQL locally. Tests create/drop isolated schemas. The workspace browser suite (`npm test -- --project workspace`) uses that variable and starts isolated API/web services. Models and evidence retrieval in these tests are offline fakes; tests must not make billable calls or send real evidence externally.
 
+To keep database traffic on the VM, run `tests/browser_server.py` from the VM checkout with its disposable database URL, forward its loopback port 8769 over SSH, and set `CORVUS_TEST_API_URL=http://127.0.0.1:8769` for the local workspace browser command. This skips starting a second test API locally. Keep the test database variable set to enable the workspace suite. Never point this override at the live API; the test API creates its own isolated schema and offline runtime.
+
 ## Change and deployment workflow
 
 1. Make focused local changes, add boundary/failure-path tests, and update relevant operational docs.

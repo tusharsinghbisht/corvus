@@ -17,7 +17,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: [
-    ...(process.env.CORVUS_TEST_DATABASE_URL
+    ...(process.env.CORVUS_TEST_DATABASE_URL && !process.env.CORVUS_TEST_API_URL
       ? [
           {
             command: "../.venv/bin/python ../tests/browser_server.py",
@@ -31,7 +31,7 @@ export default defineConfig({
       command: "npm run dev -- --port 8768",
       url: "http://127.0.0.1:8768",
       env: {
-        CORVUS_API_URL: "http://127.0.0.1:8769",
+        CORVUS_API_URL: process.env.CORVUS_TEST_API_URL ?? "http://127.0.0.1:8769",
         NEXT_TELEMETRY_DISABLED: "1",
       },
       reuseExistingServer: false,
