@@ -174,6 +174,18 @@ test("manual triage requires bundle approval and preserves report and failed can
   await expect(
     investigation.getByRole("heading", { name: "Findings", exact: true }),
   ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await investigation
+    .getByRole("heading", { name: "Analyst investigation", exact: true })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "../artifacts/browser-tests/manual-investigation-mobile.png",
+  });
 });
 
 test("mobile workspace stays within the viewport", async ({ page }) => {
