@@ -76,4 +76,6 @@ npm run check
 npm run build
 ```
 
-PostgreSQL integration tests require `CORVUS_TEST_DATABASE_URL` pointing to a **disposable database**. They create/drop isolated schemas, not production data. Browser tests additionally require `npx playwright install chromium`, then `npm test`; they start isolated test services on 8768/8769. Run build and browser tests sequentially because both use `.next`. Test records never enter the live application's database.
+Browser checks require `npx playwright install chromium`. Run `npm test -- --project ui` for public-page interactions, self-hosted fonts, responsive layout, and sidebar behavior; layout tests mock API responses only inside the browser.
+
+PostgreSQL integration tests require `CORVUS_TEST_DATABASE_URL` pointing to a **disposable database**. They create/drop isolated schemas, not production data. With that variable set, `npm test -- --project workspace` starts isolated services on 8768/8769 and tests authentication, connection controls, and alert browsing against PostgreSQL. These integration cases are explicitly skipped without the database variable. Run build and browser tests sequentially because both use `.next`. Test records never enter the live application's database.

@@ -1,5 +1,10 @@
 import { test, expect, Page } from "@playwright/test";
 
+test.skip(
+  !process.env.CORVUS_TEST_DATABASE_URL,
+  "Workspace integration tests require a disposable PostgreSQL database",
+);
+
 async function login(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Username", { exact: true }).fill("test-admin");
@@ -12,36 +17,16 @@ async function login(page: Page) {
   ).toBeVisible();
 }
 
-test("public landing page has the custom mark and private APIs reject anonymous requests", async ({
+test("private APIs reject anonymous requests and the workspace redirects to login", async ({
   page,
   request,
 }) => {
-  await page.goto("/");
-  await expect(page.locator("body")).toHaveCSS(
-    "background-color",
-    "rgb(16, 20, 17)",
-  );
-  await expect(
-    page.getByRole("heading", { name: "More context. Fewer assumptions." }),
-  ).toBeVisible();
-  await expect
-    .poll(() =>
-      page
-        .locator(".brand svg")
-        .first()
-        .evaluate((node) => (node as SVGGraphicsElement).getBBox().width),
-    )
-    .toBeGreaterThan(0);
-  await page.screenshot({
-    path: "../artifacts/browser-tests/landing.png",
-    fullPage: true,
-  });
   expect((await request.get("/api/alerts")).status()).toBe(401);
   await page.goto("/soc");
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.locator(".login-page")).toHaveCSS(
+  await expect(page.locator("body")).toHaveCSS(
     "background-color",
-    "rgb(16, 20, 17)",
+    "rgb(5, 5, 5)",
   );
 });
 

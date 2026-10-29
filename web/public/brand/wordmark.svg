@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 252 64" fill="none">
   <title>Corvus</title>
-  <rect width="252" height="64" rx="10" fill="#101411"/>
-  <g fill="#bdd8a5">
+  <rect width="252" height="64" rx="10" fill="#080808"/>
+  <g fill="#ededed">
     <path fill-rule="evenodd" clip-rule="evenodd" d="M12 48 16 29 27 13h13l7 9 12 6-15 3-6 13-16 9 3-15-13 10Zm9-16 12-6-8 13-4-7Zm19-9a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z"/>
-    <text x="77" y="45" font-family="Arial,Helvetica,sans-serif" font-size="42" font-weight="600" letter-spacing="-1.8">corvus</text>
+    <text x="77" y="45" font-family="Bricolage Grotesque,Arial,Helvetica,sans-serif" font-size="42" font-weight="600" letter-spacing="-1.8">corvus</text>
   </g>
 </svg>

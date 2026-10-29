@@ -2,141 +2,477 @@ import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
+  Braces,
+  Check,
   Database,
+  FileSearch,
   Fingerprint,
-  ScanLine,
+  Github,
+  Layers3,
+  LockKeyhole,
+  Network,
+  Radio,
+  ShieldCheck,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
+import {
+  InvestigationScene,
+  EvidenceIllustration,
+  StorageIllustration,
+} from "@/components/isometric";
+import {
+  ArchitectureExplorer,
+  AnalystModes,
+} from "@/components/landing-explorer";
+
+const stack = [
+  {
+    name: "Next.js",
+    layer: "THE INTERFACE",
+    icon: Layers3,
+    description:
+      "React and TypeScript for an authenticated, responsive workspace. Your browser never receives backend or model credentials.",
+  },
+  {
+    name: "Python · FastAPI",
+    layer: "THE SERVICE",
+    icon: Braces,
+    description:
+      "A small API and a separate ingestion worker. Backend adapters, evidence collection, reporting, and model transport remain separate.",
+  },
+  {
+    name: "PostgreSQL",
+    layer: "THE OPERATIONAL RECORD",
+    icon: Database,
+    description:
+      "Transactional checkpoints, indexed alert fields, original JSONB payloads, sessions, and audit events. A foundation for later operational analytics.",
+  },
+  {
+    name: "Wazuh · OpenSearch",
+    layer: "THE SECURITY BACKEND",
+    icon: Radio,
+    description:
+      "Keep your existing detections and telemetry pipeline. Read alerts and retrieve supporting context through documented indexer APIs.",
+  },
+  {
+    name: "Azure Foundry",
+    layer: "THE ANALYST PROVIDER",
+    icon: Network,
+    description:
+      "The configured DeepSeek-V4-Flash deployment powers the advisory Analyst core. No automatic model substitution or hidden tool execution.",
+  },
+  {
+    name: "Docker · Caddy",
+    layer: "THE DEPLOYMENT",
+    icon: LockKeyhole,
+    description:
+      "Separate web, API, worker, and database containers. HTTPS at the edge, private service routing, and server-side secrets.",
+  },
+];
+
+const questions = [
+  {
+    question: "Does Corvus replace Wazuh?",
+    answer:
+      "No. Wazuh remains responsible for detection and telemetry. Corvus is an independent companion that preserves incoming alerts and adds an evidence-led investigation workflow. You do not need to fork Wazuh or couple its lifecycle to Corvus.",
+  },
+  {
+    question: "What can I use in the workspace today?",
+    answer:
+      "Authenticated Wazuh connection setup, durable alert ingestion, severity and time filters, search, pagination, sync health, and original-source inspection. The Analyst core already exists separately; manual dashboard triage is the next integration. Automatic mode is planned, not currently enabled.",
+  },
+  {
+    question: "Does every alert get sent to a model?",
+    answer:
+      "No. The current ingestion worker makes no model calls. Analyst processing requires an explicit external-processing decision. Planned automatic mode will require separate connection-level consent and request limits; turning on ingestion will not opt you in.",
+  },
+  {
+    question: "Can the Analyst contain or remediate an endpoint?",
+    answer:
+      "No. It is read-only and has no response executor. Recommendations remain advisory. A model disposition, completed report, or passed citation check is not authorization for an endpoint action.",
+  },
+  {
+    question: "Why PostgreSQL instead of another analytics database?",
+    answer:
+      "The application needs transactions, deduplication, authentication, job state, and indexed queries first. PostgreSQL supports that operational workload and initial SQL analytics. High-volume raw telemetry stays in Wazuh rather than being copied into another event lake.",
+  },
+  {
+    question: "What happens when telemetry is missing?",
+    answer:
+      "Collection failures, truncation, incomplete time windows, and missing ancestry are preserved as explicit gaps. The Analyst must distinguish unknown activity from evidence of absence. Schema and citation checks improve inspectability but do not prove narrative accuracy.",
+  },
+];
 
 export default function Home() {
   return (
     <main className="landing">
-      <nav className="landing-nav">
+      <nav className="landing-nav glass-panel" aria-label="Main navigation">
         <Brand />
         <div>
-          <a href="#workflow">How it works</a>
-          <a href="#principles">Principles</a>
-          <Link href="/login" className="nav-cta">
+          <a href="#features">Features</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#stack">The stack</a>
+          <Link href="/soc" className="nav-cta">
             Open workspace <ArrowUpRight size={15} />
           </Link>
         </div>
       </nav>
-      <section className="hero">
-        <div className="eyebrow">
-          <span className="dot" /> INDEPENDENT SOC WORKSPACE
+      <section className="landing-hero marketing-container">
+        <div className="hero-copy">
+          <div className="eyebrow">
+            <span className="dot" /> INDEPENDENT SOC WORKSPACE
+          </div>
+          <h1>
+            The alert is only
+            <br />
+            <span>the beginning.</span>
+          </h1>
+          <p>
+            Connect your detections to a clearer investigation path. Keep the
+            original evidence, understand the context, and make the next
+            decision with something to stand on.
+          </p>
+          <div className="hero-actions">
+            <Link href="/soc" className="button primary">
+              Enter workspace <ArrowUpRight size={17} />
+            </Link>
+            <a href="#architecture" className="quiet-link">
+              Explore the architecture <ArrowRight size={16} />
+            </a>
+          </div>
+          <div className="hero-note">
+            <ShieldCheck size={15} />
+            <span>
+              Wazuh-first. Read-only. Human judgment stays in the loop.
+            </span>
+          </div>
         </div>
-        <h1>
-          More context.
-          <br />
-          Fewer assumptions.
-        </h1>
-        <p>
-          Security alerts are a starting point. Corvus brings your Wazuh
-          detections, supporting evidence, and investigation history into one
-          focused workspace.
-        </p>
-        <div className="hero-actions">
-          <Link href="/soc" className="button primary">
-            Enter workspace <ArrowRight size={17} />
-          </Link>
-          <a href="#workflow" className="quiet-link">
-            Follow the evidence ↓
-          </a>
-        </div>
-        <div className="hero-foot">
-          <span>Built around your telemetry.</span>
-          <span>No replacement SIEM. No black-box response.</span>
-        </div>
+        <InvestigationScene />
       </section>
-      <section id="workflow" className="workflow">
+      <div className="stack-ribbon marketing-container">
+        <span>
+          DESIGNED AS A COMPANION.
+          <br />
+          NOT ANOTHER SIEM.
+        </span>
+        <div>
+          <span>Wazuh</span>
+          <span>Next.js</span>
+          <span>PostgreSQL</span>
+          <span>Azure Foundry</span>
+          <span>Docker</span>
+        </div>
+      </div>
+
+      <section id="features" className="marketing-section marketing-container">
         <div className="section-heading">
           <div>
-            <div className="eyebrow">THE INVESTIGATION PATH</div>
+            <div className="eyebrow">A WORKSPACE, NOT A WALL OF SIGNALS</div>
             <h2>
-              From a signal to something
+              Your sources intact.
               <br />
-              you can stand behind.
+              Your workflow in one place.
             </h2>
           </div>
           <p>
-            Keep the source. Gather the context.
+            Live detections, durable records, original evidence.
             <br />
-            Know what remains uncertain.
+            The operational essentials, connected.
           </p>
         </div>
-        <div className="steps">
-          <article>
-            <div className="step-top">
-              <span>01 / CONNECT</span>
-              <ScanLine size={22} />
+        <div className="feature-grid">
+          <article className="feature-card glass-panel">
+            <div className="feature-card-top">
+              <Radio size={23} />
+              <span className="availability-tag">Available now</span>
             </div>
-            <h3>
-              Your detections,
-              <br />
-              one clear queue.
-            </h3>
+            <h3>A real alert queue.</h3>
             <p>
-              Connect Wazuh with dedicated read-only credentials. Incoming
-              alerts retain their original source identity and severity.
+              Ingest Wazuh alerts across agents and rule levels. Search, filter
+              by severity and time, and inspect the original detection without
+              switching between disconnected views.
             </p>
+            <div className="feature-detail-line">
+              <span>Read-only adapter</span>
+              <ArrowRight size={13} />
+              <span>Authenticated workspace</span>
+            </div>
           </article>
-          <article>
-            <div className="step-top">
-              <span>02 / PRESERVE</span>
-              <Database size={22} />
+          <article className="feature-card glass-panel">
+            <div className="feature-card-top">
+              <Fingerprint size={23} />
+              <span className="availability-tag">Available now</span>
             </div>
-            <h3>
-              A record that
-              <br />
-              doesn’t disappear.
-            </h3>
+            <h3>Identity comes with it.</h3>
             <p>
-              PostgreSQL stores alerts independently of the browser, with
-              ingestion checkpoints and visible connection health.
+              Keep the connection, native index, document ID, timestamps, and
+              original source. Normalization adds usable context without
+              replacing the underlying evidence.
             </p>
+            <div className="feature-detail-line">
+              <span>Native reference</span>
+              <ArrowRight size={13} />
+              <span>Original JSON</span>
+            </div>
           </article>
-          <article>
-            <div className="step-top">
-              <span>03 / INVESTIGATE</span>
-              <Fingerprint size={22} />
+          <article className="feature-card feature-card-wide glass-panel">
+            <div>
+              <div className="feature-card-top">
+                <Database size={23} />
+                <span className="availability-tag">Available now</span>
+              </div>
+              <h3>
+                The browser is not
+                <br />
+                your database.
+              </h3>
+              <p>
+                PostgreSQL preserves records independently of a browser session.
+                Idempotent inserts and checkpointed polling let the worker catch
+                up without pretending incomplete queries succeeded.
+              </p>
+              <ul className="feature-checks">
+                <li>
+                  <Check size={14} />
+                  Durable alert records
+                </li>
+                <li>
+                  <Check size={14} />
+                  Visible backfill and sync health
+                </li>
+                <li>
+                  <Check size={14} />
+                  No archive mirroring
+                </li>
+              </ul>
             </div>
-            <h3>
-              Evidence first.
-              <br />
-              Judgment second.
-            </h3>
-            <p>
-              The read-only Analyst gathers scoped context and produces advisory
-              findings. Missing evidence stays explicit. Human review stays
-              essential.
-            </p>
+            <StorageIllustration />
+          </article>
+          <article className="feature-card feature-card-wide glass-panel">
+            <div>
+              <div className="feature-card-top">
+                <FileSearch size={23} />
+                <span className="availability-tag">Analyst core</span>
+              </div>
+              <h3>
+                Context beyond
+                <br />
+                the trigger.
+              </h3>
+              <p>
+                The collector retrieves bounded surrounding activity and process
+                ancestry. The Analyst separates observations, inferences,
+                alternative explanations, and gaps in an advisory report.
+              </p>
+              <p className="feature-status">
+                Analyst engine implemented. Dashboard triage is the next
+                rollout.
+              </p>
+            </div>
+            <EvidenceIllustration />
           </article>
         </div>
       </section>
-      <section id="principles" className="principles">
-        <div className="eyebrow">CONTROL STAYS WITH YOU</div>
+
+      <section
+        id="architecture"
+        className="marketing-section architecture-section marketing-container"
+      >
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">FOLLOW THE DATA</div>
+            <h2>
+              Follow the signal.
+              <br />
+              Inspect every layer.
+            </h2>
+          </div>
+          <p>
+            Explore where an alert goes, what gets stored,
+            <br />
+            and where model processing begins—and ends.
+          </p>
+        </div>
+        <ArchitectureExplorer />
+        <div className="architecture-notes">
+          <div>
+            <span>01</span>
+            <h3>Backend boundaries</h3>
+            <p>
+              Wazuh-specific queries and field mappings stay inside the adapter.
+              The collector and Analyst work with an evidence contract, not a
+              forked SIEM.
+            </p>
+          </div>
+          <div>
+            <span>02</span>
+            <h3>Storage boundaries</h3>
+            <p>
+              Operational records live in PostgreSQL. High-volume telemetry
+              stays in Wazuh and is retrieved only within a scoped collection.
+            </p>
+          </div>
+          <div>
+            <span>03</span>
+            <h3>Authority boundaries</h3>
+            <p>
+              Data retrieval, external analysis, report validation, and human
+              review are separate steps. None grants the model permission to
+              execute a response.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="principles marketing-container glass-panel">
+        <div className="eyebrow">WHAT MAKES CORVUS DIFFERENT</div>
         <h2>
-          Connected to your stack.
+          Clearer context.
           <br />
-          Not in control of it.
+          Accountable decisions.
         </h2>
-        <div>
-          <p>
-            Corvus reads security data. It does not isolate endpoints, execute
-            remediation, or treat a model recommendation as authorization.
-          </p>
-          <p>
-            External model processing requires explicit approval. Credentials
-            stay server-side; logs are evidence, never instructions.
-          </p>
+        <div className="principle-grid">
+          <article>
+            <span>01 / SOURCE FIRST</span>
+            <h3>A detection is a lead.</h3>
+            <p>
+              Rule names and severity are starting points, not proof of
+              compromise. Keep the source close enough to challenge the
+              interpretation.
+            </p>
+          </article>
+          <article>
+            <span>02 / HONEST UNCERTAINTY</span>
+            <h3>Unknown stays unknown.</h3>
+            <p>
+              Failed collection is not “nothing happened.” Gaps and partial
+              windows stay visible instead of becoming confident model prose.
+            </p>
+          </article>
+          <article>
+            <span>03 / CHECKABLE OUTPUT</span>
+            <h3>Findings need a trail.</h3>
+            <p>
+              Evidence binding and citation checks make reports easier to
+              inspect. They do not replace review or prove that every claim
+              follows from the logs.
+            </p>
+          </article>
+          <article>
+            <span>04 / CONTROL RETAINED</span>
+            <h3>Advice is not authority.</h3>
+            <p>
+              A recommendation is not an approved action. Corvus does not
+              silently isolate hosts or turn a model label into incident
+              resolution.
+            </p>
+          </article>
         </div>
       </section>
-      <footer className="landing-footer">
+
+      <section className="marketing-section marketing-container">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">THE NEXT LAYER: ANALYST IN YOUR QUEUE</div>
+            <h2>
+              One Analyst.
+              <br />
+              Two deliberate ways to work.
+            </h2>
+          </div>
+          <p>
+            The core investigation path stays the same.
+            <br />
+            You decide how an alert enters it.
+          </p>
+        </div>
+        <AnalystModes />
+      </section>
+
+      <section id="stack" className="marketing-section marketing-container">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">BUILT ON UNDERSTANDABLE PARTS</div>
+            <h2>
+              A focused stack.
+              <br />
+              Clear responsibilities.
+            </h2>
+          </div>
+          <p>
+            Focused by design.
+            <br />
+            Every component has a clear responsibility.
+          </p>
+        </div>
+        <div className="tech-grid">
+          {stack.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article key={item.name} className="tech-card glass-panel">
+                <div>
+                  <Icon size={22} />
+                  <span>{item.layer}</span>
+                </div>
+                <h3>{item.name}</h3>
+                <p>{item.description}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="marketing-section faq-section marketing-container">
+        <div>
+          <div className="eyebrow">BEFORE YOU CONNECT</div>
+          <h2>A few straight answers.</h2>
+          <p>
+            What runs today, what is next,
+            <br />
+            and what Corvus intentionally does not do.
+          </p>
+        </div>
+        <div className="faq-list">
+          {questions.map((item) => (
+            <details key={item.question}>
+              <summary>
+                {item.question}
+                <span aria-hidden="true">+</span>
+              </summary>
+              <p>{item.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+      <section className="final-cta marketing-container glass-panel">
+        <span className="eyebrow">START WITH WHAT ACTUALLY HAPPENED</span>
+        <h2>
+          Your alerts.
+          <br />A clearer next step.
+        </h2>
+        <p>Bring the source into focus. Leave the assumptions behind.</p>
+        <div>
+          <Link href="/soc" className="button primary">
+            Open workspace <ArrowUpRight size={17} />
+          </Link>
+          <a
+            href="https://github.com/tusharsinghbisht/corvus"
+            className="quiet-link"
+          >
+            <Github size={17} />
+            Read the source
+          </a>
+        </div>
+      </section>
+      <footer className="landing-footer marketing-container">
         <Brand />
-        <span>Wazuh · PostgreSQL · Azure Foundry</span>
-        <Link href="/login">
-          Open workspace <ArrowUpRight size={14} />
-        </Link>
+        <span>Independent investigation. Evidence before conclusions.</span>
+        <div>
+          <a href="#architecture">Architecture</a>
+          <a href="https://github.com/tusharsinghbisht/corvus">
+            GitHub <ArrowUpRight size={13} />
+          </a>
+        </div>
       </footer>
     </main>
   );
