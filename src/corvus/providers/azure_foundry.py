@@ -144,22 +144,40 @@ class AzureFoundryClient:
                     and type(value) is int
                     and value >= 0
                 }
+                # Retain only bounded, allowlisted diagnostics, including when
+                # no candidate content is present. Never save reasoning traces.
+                reason = choice.get("finish_reason")
+                reason = (
+                    reason
+                    if reason
+                    in ("stop", "length", "content_filter", "tool_calls", "function_call", None)
+                    else "other"
+                )
+                diagnostics = {
+                    "finish_reason": reason,
+                    "served_model": model if isinstance(model, str) and len(model) <= 256 else None,
+                    "usage": usage,
+                }
                 reply = (
-                    ModelReply(content, model, usage)
+                    ModelReply(content, model, usage, reason)
                     if isinstance(content, str) and content.strip() and isinstance(model, str)
                     else None
                 )
-                if choice.get("finish_reason") != "stop":
+                if reason != "stop":
                     raise ModelError(
                         "incomplete_model_response",
-                        "Model did not finish normally; increase the explicit token budget or investigate the provider",
+                        "Model reached the configured output-token limit"
+                        if reason == "length"
+                        else "Model did not finish normally; inspect the saved response diagnostics",
                         reply=reply,
+                        diagnostics=diagnostics,
                     )
                 if message.get("tool_calls") or message.get("function_call"):
                     raise ModelError(
                         "unexpected_model_tool_call",
                         "This analyst has no tool-execution capability",
                         reply=reply,
+                        diagnostics=diagnostics,
                     )
                 if reply is None:
                     raise ValueError("Missing model content")

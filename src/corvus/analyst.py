@@ -99,6 +99,7 @@ def analyze(bundle, model: AnalystModel, *, on_reply=None):
         "model": {
             "served_model": reply.model,
             "usage": reply.usage,
+            "finish_reason": reply.finish_reason,
             "duration_seconds": round(monotonic() - started, 3),
         },
         "report": report,

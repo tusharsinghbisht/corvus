@@ -170,7 +170,47 @@ test("manual triage requires bundle approval and preserves report and failed can
       .filter({ hasText: "invalid candidate" })
       .last(),
   ).toContainText("<script>untrusted</script>");
-  await investigation.getByLabel("Attempt history").selectOption({ index: 1 });
+  await investigation
+    .getByRole("button", { name: "Collect new attempt" })
+    .click();
+  await expect(investigation.getByRole("status")).toContainText(
+    "Awaiting your approval",
+    { timeout: 90000 },
+  );
+  await investigation.getByRole("checkbox").check();
+  await approve.click();
+  await expect(investigation.getByRole("alert")).toContainText(
+    "Incomplete Analyst response",
+    { timeout: 90000 },
+  );
+  await expect(investigation.getByRole("alert")).toContainText(
+    "reached the configured output-token limit",
+  );
+  await expect(investigation.getByRole("alert")).toContainText("4,096 / 4,096");
+  await expect(investigation.getByRole("alert")).toContainText(
+    "Finish reason: length",
+  );
+  await expect(investigation.getByRole("alert")).toContainText(
+    "No automatic retry",
+  );
+  await investigation
+    .getByRole("button", { name: "Collect new attempt" })
+    .click();
+  await expect(investigation.getByRole("status")).toContainText(
+    "Awaiting your approval",
+    { timeout: 90000 },
+  );
+  await investigation.getByRole("checkbox").check();
+  await approve.click();
+  await expect(investigation.getByRole("alert")).toContainText(
+    "original finish reason was not recorded",
+    { timeout: 90000 },
+  );
+  await expect(investigation.getByRole("alert")).toContainText("4,096 / 4,096");
+  await expect(investigation.getByRole("alert")).not.toContainText(
+    "Finish reason: length",
+  );
+  await investigation.getByLabel("Attempt history").selectOption({ index: 3 });
   await expect(
     investigation.getByRole("heading", { name: "Findings", exact: true }),
   ).toBeVisible();

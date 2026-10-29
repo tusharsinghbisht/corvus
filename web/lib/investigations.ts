@@ -44,6 +44,11 @@ export type Evidence = {
   gaps: { code: string; message?: string }[];
   limitations: string[];
 };
+export type ResponseDiagnostics = {
+  finish_reason: string | null;
+  served_model?: string | null;
+  usage: Record<string, number>;
+};
 export type Attempt = {
   id: string;
   number: number;
@@ -57,7 +62,12 @@ export type Attempt = {
   approved_at: string | null;
   request_started_at: string | null;
   completed_at: string | null;
-  provenance: Record<string, unknown> | null;
+  provenance:
+    | (Record<string, unknown> & {
+        max_tokens?: number;
+        response?: ResponseDiagnostics;
+      })
+    | null;
   error_code: string | null;
 };
 export type AttemptDetail = Attempt & {
@@ -67,6 +77,7 @@ export type AttemptDetail = Attempt & {
     content: string;
     model: string;
     usage: Record<string, number>;
+    finish_reason?: string | null;
   } | null;
   result: {
     status: string;

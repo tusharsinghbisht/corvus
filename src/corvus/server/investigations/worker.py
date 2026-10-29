@@ -50,12 +50,17 @@ def recover(db):
         audit(db, "triage.interrupted", row["id"])
 
 
-def fail(settings, identifier, status, code):
+def fail(settings, identifier, status, code, *, diagnostics=None):
     with connect(settings) as db:
         db.execute(
             "UPDATE triage_attempts SET status=%s,error_code=%s,completed_at=now() WHERE id=%s",
             (status, code, identifier),
         )
+        if diagnostics is not None:
+            db.execute(
+                "UPDATE triage_attempts SET provenance=coalesce(provenance,'{}'::jsonb) || %s WHERE id=%s",
+                (Jsonb({"response": diagnostics}), identifier),
+            )
         audit(db, "triage." + status, identifier)
 
 
@@ -127,7 +132,14 @@ def analyze_attempt(settings, attempt, model_factory):
             db.execute(
                 "UPDATE triage_attempts SET model_reply=%s WHERE id=%s",
                 (
-                    Jsonb({"content": reply.content, "model": reply.model, "usage": reply.usage}),
+                    Jsonb(
+                        {
+                            "content": reply.content,
+                            "model": reply.model,
+                            "usage": reply.usage,
+                            "finish_reason": reply.finish_reason,
+                        }
+                    ),
                     identifier,
                 ),
             )
@@ -147,7 +159,13 @@ def analyze_attempt(settings, attempt, model_factory):
         # Even a timeout may have completed remotely. Neither failures nor unknowns are retried.
         code = exc.code if isinstance(exc, ModelError) else "analysis_interrupted"
         unknown = code in ("model_connection_failed", "analysis_interrupted")
-        fail(settings, identifier, "unknown" if unknown else "failed", code)
+        fail(
+            settings,
+            identifier,
+            "unknown" if unknown else "failed",
+            code,
+            diagnostics=exc.diagnostics if isinstance(exc, ModelError) else None,
+        )
 
 
 def run_once(settings, *, collector=collect, model_factory=configured_model):

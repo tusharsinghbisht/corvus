@@ -105,7 +105,16 @@ class FoundryClientTests(unittest.TestCase):
         self.assertEqual(
             reply.usage, {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
         )
+        self.assertEqual(reply.finish_reason, "stop")
         self.connection.close.assert_called_once()
+
+    def test_explicit_larger_output_budget_does_not_change_model_or_retry(self):
+        client = AzureFoundryClient(FoundryConfig(ENDPOINT, FAKE_KEY, max_tokens=8192))
+        client.complete(self.messages)
+        payload = json.loads(self.connection.request.call_args.kwargs["body"])
+        self.assertEqual(payload["max_tokens"], 8192)
+        self.assertEqual(payload["model"], "DeepSeek-V4-Flash")
+        self.connection.request.assert_called_once()
 
     def test_http_errors_are_sanitized_never_retried_or_redirected(self):
         for status in (302, 401, 403, 404, 429, 500):
@@ -156,6 +165,43 @@ class FoundryClientTests(unittest.TestCase):
             self.assertEqual(caught.exception.code, code)
             self.assertEqual(caught.exception.reply.content, "{}")
             self.assertEqual(caught.exception.reply.model, "DeepSeek-V4-Flash")
+            self.assertEqual(caught.exception.diagnostics["finish_reason"], choice["finish_reason"])
+            self.assertEqual(caught.exception.diagnostics["usage"]["completion_tokens"], 20)
+
+    def test_empty_incomplete_reply_retains_safe_diagnostics_not_reasoning(self):
+        self.response.read.return_value = completion(
+            choices=[
+                {
+                    "finish_reason": "length",
+                    "message": {"content": None, "reasoning_content": "PRIVATE-REASONING"},
+                }
+            ]
+        )
+        with self.assertRaises(ModelError) as caught:
+            self.client.complete(self.messages)
+        error = caught.exception
+        self.assertEqual(error.code, "incomplete_model_response")
+        self.assertIsNone(error.reply)
+        self.assertEqual(error.diagnostics["finish_reason"], "length")
+        self.assertEqual(error.diagnostics["usage"]["completion_tokens"], 20)
+        self.assertNotIn("PRIVATE-REASONING", json.dumps(error.diagnostics))
+        self.assertNotIn("PRIVATE-REASONING", str(error))
+        self.connection.request.assert_called_once()
+
+    def test_unknown_finish_reason_is_not_echoed_in_diagnostics(self):
+        self.response.read.return_value = completion(
+            choices=[
+                {
+                    "finish_reason": "PRIVATE-UNEXPECTED-DATA",
+                    "message": {"content": "{}"},
+                }
+            ]
+        )
+        with self.assertRaises(ModelError) as caught:
+            self.client.complete(self.messages)
+        self.assertEqual(caught.exception.diagnostics["finish_reason"], "other")
+        self.assertEqual(caught.exception.reply.finish_reason, "other")
+        self.assertNotIn("PRIVATE-UNEXPECTED-DATA", json.dumps(caught.exception.diagnostics))
 
     def test_invalid_envelopes_and_connection_errors_are_explicit(self):
         for payload in (b"not JSON", b"[]", b'{"choices":[]}', completion(usage=None)):

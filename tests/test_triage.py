@@ -304,14 +304,40 @@ class TriageTests(ServerDatabaseCase):
         self.model.complete.side_effect = ModelError(
             "incomplete_model_response",
             "Incomplete",
-            reply=ModelReply('{"partial":', "test-served", {"total_tokens": 99}),
+            reply=ModelReply('{"partial":', "test-served", {"total_tokens": 99}, "length"),
+            diagnostics={"finish_reason": "length", "usage": {"total_tokens": 99}},
         )
         self.tick()
         attempt = self.read(identifier)
         self.assertEqual(attempt["status"], "failed")
         self.assertEqual(attempt["model_reply"]["content"], '{"partial":')
         self.assertEqual(attempt["model_reply"]["usage"]["total_tokens"], 99)
+        self.assertEqual(attempt["model_reply"]["finish_reason"], "length")
+        self.assertEqual(attempt["provenance"]["response"]["finish_reason"], "length")
+        self.assertEqual(attempt["provenance"]["requested_model"], "test-requested")
         self.assertIsNone(attempt["result"])
+        self.tick()
+        self.model.complete.assert_called_once()
+
+    def test_incomplete_response_without_content_retains_diagnostics_and_is_not_retried(self):
+        identifier = self.request()
+        self.tick()
+        self.approve(identifier)
+        self.model.complete.side_effect = ModelError(
+            "incomplete_model_response",
+            "Output limit",
+            diagnostics={
+                "finish_reason": "length",
+                "served_model": "test-served",
+                "usage": {"completion_tokens": 4096},
+            },
+        )
+        self.tick()
+        attempt = self.read(identifier)
+        self.assertEqual(attempt["status"], "failed")
+        self.assertIsNone(attempt["model_reply"])
+        self.assertEqual(attempt["provenance"]["response"]["usage"]["completion_tokens"], 4096)
+        self.assertEqual(attempt["provenance"]["requested_model"], "test-requested")
         self.tick()
         self.model.complete.assert_called_once()
 

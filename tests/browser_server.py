@@ -13,7 +13,7 @@ from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from test_ingestion import document, settings
 
-from corvus.providers import ModelReply
+from corvus.providers import ModelError, ModelReply
 from corvus.server.api import create_app
 from corvus.server.database import connect, initialize
 from corvus.server.ingestion import insert_alert
@@ -60,6 +60,30 @@ def main():
 
             def complete(self, messages):
                 self.calls += 1
+                if self.calls == 3:
+                    raise ModelError(
+                        "incomplete_model_response",
+                        "Output limit",
+                        reply=ModelReply(
+                            '{"partial":',
+                            "browser-test-runtime",
+                            {"completion_tokens": 4096},
+                            "length",
+                        ),
+                        diagnostics={
+                            "finish_reason": "length",
+                            "usage": {"completion_tokens": 4096},
+                        },
+                    )
+                if self.calls == 4:
+                    # Historical attempts saved usage but not finish_reason.
+                    raise ModelError(
+                        "incomplete_model_response",
+                        "Incomplete",
+                        reply=ModelReply(
+                            '{"partial":', "browser-test-runtime", {"completion_tokens": 4096}
+                        ),
+                    )
                 return ModelReply(
                     json.dumps(report)
                     if self.calls == 1
@@ -76,7 +100,10 @@ def main():
                 run_once(
                     config,
                     collector=lambda *args, **kwargs: bundle,
-                    model_factory=lambda: (model, {"provider": "offline-browser-test"}),
+                    model_factory=lambda: (
+                        model,
+                        {"provider": "offline-browser-test", "max_tokens": 4096},
+                    ),
                 )
                 stop.wait(0.2)
 

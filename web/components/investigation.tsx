@@ -6,6 +6,7 @@ import { api, ApiError, time } from "@/lib/api";
 import { activeStatuses, statusLabels } from "@/lib/investigations";
 import type { Attempt, AttemptDetail, Report } from "@/lib/investigations";
 import { InvestigationReport } from "./investigation-report";
+import { InvestigationFailure } from "./investigation-failure";
 
 export function Investigation({ alertId }: { alertId: string }) {
   const router = useRouter();
@@ -191,12 +192,7 @@ export function Investigation({ alertId }: { alertId: string }) {
             {visible ? (
               <>
                 {visible.error_code && (
-                  <div className="notice error">
-                    Failure: {visible.error_code}.{" "}
-                    {visible.request_started_at
-                      ? "The request may have been processed or billed. No automatic retry is made; a new attempt requires fresh approval."
-                      : "No model request was started. A new attempt must be requested explicitly."}
-                  </div>
+                  <InvestigationFailure attempt={visible} />
                 )}
                 {visible.status === "requesting" && (
                   <p>
@@ -299,6 +295,7 @@ export function Investigation({ alertId }: { alertId: string }) {
                       {
                         ...selected,
                         provenance: visible.provenance,
+                        response_usage: visible.model_reply?.usage,
                         human_review_required: true,
                         response_executed: false,
                       },

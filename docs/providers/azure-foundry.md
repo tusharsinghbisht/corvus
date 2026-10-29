@@ -24,7 +24,7 @@ The `model` value is an exact deployment identifier. The implementation currentl
 
 Install the same configuration outside the VPS checkout at `~ubuntu/.config/corvus/app/analyst.json`, owned by UID/GID `10001:10001`, mode `0600`. `compose.analyst.yaml` mounts it read-only **only in the worker** and sets `CORVUS_FOUNDRY_CONFIG=/run/corvus/analyst.json`. Include that override on every Compose update; see [deployment](../deployment.md). Never mount it in API/web or expose it through frontend environment variables.
 
-The requested deployment remains `DeepSeek-V4-Flash`. Configuration loading alone makes no request. Do not probe it with real evidence or run an analysis without separate explicit per-bundle approval. Transport availability is not yet proven by a successful real-evidence request.
+The requested deployment remains `DeepSeek-V4-Flash`. Configuration loading alone makes no request. Do not probe it with real evidence or run an analysis without separate explicit per-bundle approval. A returned provider response is not the same as a completed, validated investigation report.
 
 ## Transport constraints
 
@@ -35,6 +35,13 @@ The requested deployment remains `DeepSeek-V4-Flash`. Configuration loading alon
 - Input limit 1 MiB; provider response limit 2 MiB. Oversize input is rejected rather than silently truncated.
 - Generated-token range 256–8,192; socket timeout 1–180 seconds. Defaults are shown above.
 - Provider failures are operational errors, not fabricated investigation reports.
+- Finish reason, actual served identity, and allowlisted token usage are preserved for incomplete responses, even when there is no final content. Private reasoning traces are not retained.
+
+## Incomplete responses and output budgets
+
+A `length` finish reason means generation stopped at its configured output-token limit. The partial reply is preserved when available but is not repaired, accepted as a report, or retried automatically. `content_filter` is a different failure; increasing a token budget is not a remedy for filtering.
+
+The worker pilot's explicit output budget is 8,192 tokens. The adapter/CLI default remains 4,096 unless their private configuration specifies otherwise. Budget changes apply to future approved requests only and can increase cost; they do not alter prior attempt provenance or automatically resubmit evidence. Reaching 8,192 can still fail; there is no hidden budget escalation or model fallback.
 
 ## Provider changes
 
