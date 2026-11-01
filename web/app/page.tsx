@@ -56,9 +56,9 @@ const stack = [
     name: "LangGraph",
     layer: "WORKFLOW ORCHESTRATION",
     icon: Workflow,
-    planned: true,
+    planned: false,
     description:
-      "Planned for explicit agent handoffs, durable workflow state, checkpointing, and human-approval pauses. It is not part of the current runtime. Permissions and response policy stay enforced by Corvus outside the agents.",
+      "Runs the single-pass Analyst workflow. Durable jobs, evidence approval, request budgets, and recovery stay in PostgreSQL. Multi-agent handoffs remain planned; agents do not own permissions or response authority.",
   },
 ];
 
@@ -71,12 +71,12 @@ const questions = [
   {
     question: "What can I use in the workspace today?",
     answer:
-      "Authenticated Wazuh connection setup, durable alert ingestion, severity and time filters, search, pagination, sync health, and original-source inspection. The Analyst core already exists separately; manual dashboard triage is the next integration. Automatic mode is planned, not currently enabled.",
+      "Authenticated Wazuh connection setup, durable alert ingestion, severity and time filters, search, pagination, sync health, and original-source inspection. Investigate an alert with the Analyst, review a structured report and interactive evidence map, or explicitly opt a connection into severity- and budget-limited automatic triage in Settings.",
   },
   {
     question: "Does every alert get sent to a model?",
     answer:
-      "No. The current ingestion worker makes no model calls. Analyst processing requires an explicit external-processing decision. Planned automatic mode will require separate connection-level consent and request limits; turning on ingestion will not opt you in.",
+      "No. Ingestion alone does not authorize model calls. Manual processing requires approval of selected evidence; automatic processing requires separate connection-level consent, severity eligibility, and request budgets. Turning on ingestion does not opt you in.",
   },
   {
     question: "Can the Analyst contain or remediate an endpoint?",

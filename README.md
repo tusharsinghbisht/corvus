@@ -6,9 +6,9 @@ An alert investigation service. Corvus connects security detections to supportin
 
 **Working:** authenticated Wazuh onboarding, checkpointed alert ingestion, filtering/pagination, sync health, and source inspection. Manual investigations add bounded evidence collection, explicit per-bundle external-processing approval, one Analyst request, validated advisory reports, citations, and durable attempt history. See [manual triage](docs/manual-triage.md) and [deployment](docs/deployment.md).
 
-**Not automatic:** ingestion never queues model requests. Automatic triage, human-review lifecycle, and response execution are not implemented.
+**Manual by default:** ingestion alone never queues model requests. Automatic Analyst triage is opt-in per connection, with separate external-processing consent, severity eligibility, and rolling request budgets. It excludes historical backlogs and never retries failed calls. Human-review lifecycle and response execution are not implemented.
 
-**Target architecture:** correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph is planned for workflow orchestration; these additional agents are not active yet. See [architecture](docs/architecture.md).
+**Target architecture:** correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph runs the single-pass Analyst workflow; multi-agent handoffs and these additional roles are not active yet. See [architecture](docs/architecture.md).
 
 The earlier saved-artifact dashboard has been retired. Synthetic fixtures remain development tests, not product data. There is no response executor or autonomous investigation loop.
 
@@ -43,11 +43,11 @@ src/corvus/
   adapters/       Backend-specific retrieval and field mapping
   providers/      Model-provider interface and transport adapters
   reporting/      Report contract, evidence binding, validation
+  agents/analyst/  Analyst prompt, bounded context selection, LangGraph workflow
   server/         Authenticated API, connections, ingestion, worker
     investigations/ Durable manual triage state and analysis runtime
     migrations/   Ordered PostgreSQL schema upgrades
   evidence.py     Backend-independent evidence collection
-  analyst.py      Single-pass advisory analysis
   cli.py          Local collection and analysis commands
 web/              Next.js landing page and SOC interface
 compose.yaml      Application deployment (web, API, worker, PostgreSQL)
@@ -74,7 +74,7 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 - Failed, partial, or missing evidence must remain visible.
 - Logs are untrusted data, never instructions.
 - Citation validation does not establish that a claim is true. Reports require human review.
-- Real evidence stays local unless external processing is explicitly approved. Auto mode will need separate consent and request limits.
+- Real evidence stays local unless external processing is explicitly approved per manual attempt or through a bounded connection-level automatic policy.
 
 ## Documentation
 

@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, time } from "@/lib/api";
 import { activeStatuses, statusLabels } from "@/lib/investigations";
 import type { Attempt, AttemptDetail, Report } from "@/lib/investigations";
 import { InvestigationReport } from "./investigation-report";
 import { InvestigationFailure } from "./investigation-failure";
+import { SelectedEvidence } from "./selected-evidence";
+import { AlertAnalystMode } from "./analyst-policy";
+import { EvidenceFacts } from "./evidence-facts";
 
-export function Investigation({ alertId }: { alertId: string }) {
+export function Investigation({
+  alertId,
+  connectionId,
+}: {
+  alertId: string;
+  connectionId: string;
+}) {
   const router = useRouter();
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
   const [selectedId, setSelectedId] = useState("");
@@ -18,10 +28,14 @@ export function Investigation({ alertId }: { alertId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const base = `/alerts/${alertId}/investigations`;
-  const selected = attempts?.find((a) => a.id === selectedId) ?? attempts?.[0];
-  const selectedStatus = selected?.status;
+  const latestReport = attempts?.find((a) => a.status === "validated");
+  const selected =
+    attempts?.find((a) => a.id === selectedId) ?? latestReport ?? attempts?.[0];
   const currentId = selected?.id;
-
+  const selectedStatus = selected?.status;
+  const activeAttempt = attempts?.find((a) =>
+    activeStatuses.includes(a.status),
+  );
   useEffect(() => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
@@ -50,7 +64,6 @@ export function Investigation({ alertId }: { alertId: string }) {
       clearTimeout(timer);
     };
   }, [base, refresh, router]);
-
   useEffect(() => {
     if (!currentId) return;
     const controller = new AbortController();
@@ -70,7 +83,6 @@ export function Investigation({ alertId }: { alertId: string }) {
       });
     return () => controller.abort();
   }, [base, currentId, selectedStatus, refresh, router]);
-
   async function act(action: "collect" | "approve" | "cancel") {
     if (busy) return;
     setBusy(true);
@@ -79,7 +91,7 @@ export function Investigation({ alertId }: { alertId: string }) {
       if (action === "collect") {
         const data = await api<{ id: string }>(base, { method: "POST" });
         setSelectedId(data.id);
-      } else {
+      } else
         await api(`${base}/${currentId}/${action}`, {
           method: "POST",
           ...(action === "approve"
@@ -91,7 +103,6 @@ export function Investigation({ alertId }: { alertId: string }) {
               }
             : {}),
         });
-      }
       setApproved(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401)
@@ -107,44 +118,49 @@ export function Investigation({ alertId }: { alertId: string }) {
       setRefresh((n) => n + 1);
     }
   }
-
   const visible =
-    detail?.id === currentId && detail?.status === selectedStatus
+    detail?.id === currentId && detail.status === selectedStatus
       ? detail
       : null;
-  const active = attempts?.some((a) => activeStatuses.includes(a.status));
+  const evidence = visible?.analysis_evidence ?? visible?.evidence;
   const report =
     visible?.result?.status === "validated" && visible.result.validation.valid
       ? (visible.result.report as Report)
       : null;
-
   return (
     <section
       className="panel investigation-panel"
-      aria-label="Manual Analyst investigation"
+      aria-label="Analyst investigation"
     >
-      <div className="panel-heading">
+      <div className="panel-heading investigation-heading">
         <div>
+          <div className="eyebrow">READ-ONLY INVESTIGATION AGENT</div>
           <h2>Analyst investigation</h2>
           <p>
-            Manual, read-only triage. Collection stays local until you
-            explicitly approve external processing.
+            {latestReport
+              ? "An advisory report is available. Explore its evidence, interpretation, and uncertainty below."
+              : "Turn this detection into an evidence-linked assessment. Context is prepared locally before any manual approval."}
           </p>
         </div>
         <button
-          className="button secondary"
-          disabled={busy || attempts === null || active}
+          className="button primary"
+          disabled={busy || attempts === null || !!activeAttempt}
           onClick={() => void act("collect")}
         >
-          {attempts?.length ? "Collect new attempt" : "Collect evidence"}
+          Investigate with Analyst
         </button>
       </div>
       <div className="investigation-body">
-        <p className="muted">
-          Collection scope: the alert’s agent, ±5 minutes, up to 100 events per
-          query, with a six-hour process-GUID ancestry pivot when available. No
-          tools or response execution. This does not mirror telemetry archives.
-        </p>
+        <AlertAnalystMode connectionId={connectionId} />
+        <div
+          className="investigation-steps"
+          aria-label="Investigation workflow"
+        >
+          <span>01 · Prepare context</span>
+          <span>02 · Consent / policy</span>
+          <span>03 · Analyst</span>
+          <span>04 · Report & evidence</span>
+        </div>
         {error && (
           <div role="alert" className="notice error">
             {error}
@@ -159,100 +175,127 @@ export function Investigation({ alertId }: { alertId: string }) {
             </button>
           </div>
         )}
+        {activeAttempt && activeAttempt.id !== currentId && (
+          <div className="notice">
+            Attempt #{activeAttempt.number}:{" "}
+            {statusLabels[activeAttempt.status]}.{" "}
+            <button
+              className="button secondary"
+              onClick={() => setSelectedId(activeAttempt.id)}
+            >
+              Open active attempt
+            </button>
+          </div>
+        )}
         {attempts === null ? (
           <p role="status">Loading investigation history…</p>
         ) : attempts.length === 0 ? (
-          <p>
-            No attempts yet. Collect evidence to inspect the exact input before
-            approving a model request.
-          </p>
+          <div className="investigation-empty">
+            <h3>Not investigated yet</h3>
+            <p>
+              Choose Investigate with Analyst to collect scoped evidence. A
+              manual request will not leave Corvus until you review and approve
+              its selected input.
+            </p>
+            <p className="muted">
+              Collection: this agent, ±5 minutes, six-hour process-GUID pivot
+              when available. The Analyst receives at most 24 supporting events
+              within a 64 KiB selected-evidence budget. Exclusions remain
+              explicit.
+            </p>
+          </div>
         ) : (
           <>
-            <label className="attempt-picker">
-              Attempt history
-              <select
-                aria-label="Attempt history"
-                value={currentId}
-                onChange={(event) => {
-                  setSelectedId(event.target.value);
-                  setApproved(false);
-                }}
-              >
-                {attempts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    #{a.number} · {time(a.created_at)} ·{" "}
-                    {statusLabels[a.status] ?? a.status}
-                  </option>
-                ))}
-              </select>
-            </label>
             <p role="status" className="attempt-status">
-              {statusLabels[selectedStatus ?? ""] ?? selectedStatus}
+              {statusLabels[selectedStatus ?? ""] ?? selectedStatus} · attempt #
+              {selected?.number}
             </p>
             {visible ? (
               <>
                 {visible.error_code && (
                   <InvestigationFailure attempt={visible} />
                 )}
-                {visible.status === "requesting" && (
-                  <p>
-                    A single request is in flight. Closing this page does not
-                    cancel it.
+                {latestReport && currentId !== latestReport.id && (
+                  <button
+                    className="button secondary"
+                    onClick={() => setSelectedId(latestReport.id)}
+                  >
+                    Show latest report
+                  </button>
+                )}
+                {visible.mode === "automatic" && (
+                  <p className="muted">
+                    Authorized by connection policy, not a per-alert manual
+                    click. <Link href="/soc/settings">Review policy →</Link>
                   </p>
                 )}
-                {visible.evidence && (
+                {report && evidence && (
                   <>
-                    <h3>Saved evidence · {visible.evidence.status}</h3>
-                    <p>
-                      {visible.evidence.events.length} context events, plus the
-                      alert. Collection gaps: {visible.evidence.gaps.length}.
-                    </p>
-                    {visible.evidence.gaps.map((gap, i) => (
-                      <p key={i} className="collection-gap">
-                        <strong>{gap.code}</strong> · {gap.message}
-                      </p>
-                    ))}
-                    <details className="saved-evidence">
-                      <summary>
-                        Inspect exact evidence selected for external processing
-                      </summary>
-                      <p className="muted">
-                        This is evidence selection, not redaction. Source logs
-                        may contain personal data or secrets. Only this saved
-                        bundle’s selected fields are used; no later recollection
-                        occurs on approval.
-                      </p>
-                      <pre>
-                        {JSON.stringify(visible.prepared_input, null, 2)}
-                      </pre>
-                    </details>
-                    <p className="evidence-digest">
-                      Evidence SHA-256: {visible.evidence_digest}
-                    </p>
+                    <div className="report-label">
+                      <span className="plain-tag">
+                        Report passed integrity checks
+                      </span>
+                      <span>
+                        Generated {time(visible.completed_at)} · Human review
+                        required
+                      </span>
+                    </div>
+                    <InvestigationReport
+                      key={currentId}
+                      report={report}
+                      evidence={evidence}
+                    />
                   </>
                 )}
-                {visible.status === "awaiting_approval" && (
-                  <div className="approval-box">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={approved}
-                        onChange={(event) => setApproved(event.target.checked)}
-                      />
-                      I have inspected this evidence and approve sending this
-                      exact bundle to the configured external analysis service
-                      for one request. It may contain sensitive data and incur a
-                      charge.
-                    </label>
-                    <button
-                      className="button primary"
-                      disabled={!approved || busy}
-                      onClick={() => void act("approve")}
-                    >
-                      Approve one Analyst request
-                    </button>
+                {visible.status === "requesting" && (
+                  <p>
+                    A single Analyst request is in flight. Closing this page
+                    does not cancel it.
+                  </p>
+                )}
+                {visible.status === "rejected" && (
+                  <div className="notice error">
+                    This candidate failed integrity checks. It is not an
+                    accepted assessment; its original output remains in the
+                    technical record.
                   </div>
                 )}
+                {evidence &&
+                  (report ? (
+                    <details>
+                      <summary>Selected context and collection gaps</summary>
+                      <SelectedEvidence attempt={visible} evidence={evidence} />
+                    </details>
+                  ) : (
+                    <SelectedEvidence attempt={visible} evidence={evidence} />
+                  ))}
+                {visible.status === "awaiting_approval" &&
+                  visible.mode !== "automatic" && (
+                    <div className="approval-box">
+                      <h3>Approve this selected evidence</h3>
+                      <p>
+                        Review the source facts above. Selection is not
+                        redaction; logs can contain personal data or secrets.
+                      </p>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={approved}
+                          onChange={(e) => setApproved(e.target.checked)}
+                        />
+                        I have inspected this evidence and approve sending this
+                        exact selected input to the configured external analysis
+                        service for one advisory request. It may incur a charge.
+                      </label>
+                      <button
+                        className="button primary"
+                        disabled={!approved || busy}
+                        onClick={() => void act("approve")}
+                      >
+                        Approve one Analyst request
+                      </button>
+                    </div>
+                  )}
                 {["pending_collection", "awaiting_approval", "queued"].includes(
                   visible.status,
                 ) && (
@@ -264,50 +307,66 @@ export function Investigation({ alertId }: { alertId: string }) {
                     Cancel unstarted work
                   </button>
                 )}
-                {report && visible.evidence && (
-                  <InvestigationReport
-                    report={report}
-                    evidence={visible.evidence}
+                <details className="technical-record">
+                  <summary>
+                    Technical record · provenance, original replies, and JSON
+                  </summary>
+                  <p className="evidence-digest">
+                    Selected evidence SHA-256: {visible.evidence_digest}
+                  </p>
+                  <h4>Attempt provenance and approval record</h4>
+                  <EvidenceFacts
+                    value={{
+                      ...selected,
+                      provenance: visible.provenance,
+                      response_usage: visible.model_reply?.usage,
+                      human_review_required: true,
+                      response_executed: false,
+                    }}
                   />
-                )}
-                {visible.status === "rejected" && (
-                  <div className="notice error">
-                    The candidate failed report-integrity checks. It is retained
-                    below, not presented as an accepted assessment.
-                  </div>
-                )}
-                {visible.result && (
-                  <details>
-                    <summary>Preserved candidate and validation</summary>
-                    <pre>{JSON.stringify(visible.result, null, 2)}</pre>
-                  </details>
-                )}
-                {visible.model_reply && (
-                  <details>
-                    <summary>Original model reply · untrusted text</summary>
-                    <pre>{visible.model_reply.content}</pre>
-                  </details>
-                )}
-                <details>
-                  <summary>Attempt provenance and approval record</summary>
-                  <pre>
-                    {JSON.stringify(
-                      {
-                        ...selected,
-                        provenance: visible.provenance,
-                        response_usage: visible.model_reply?.usage,
-                        human_review_required: true,
-                        response_executed: false,
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
+                  {visible.result && (
+                    <details>
+                      <summary>
+                        Preserved candidate and validation · JSON
+                      </summary>
+                      <pre>{JSON.stringify(visible.result, null, 2)}</pre>
+                    </details>
+                  )}
+                  {visible.model_reply && (
+                    <details>
+                      <summary>Original model reply · untrusted text</summary>
+                      <pre>{visible.model_reply.content}</pre>
+                    </details>
+                  )}
+                  {visible.evidence && (
+                    <details>
+                      <summary>Original collected evidence · JSON</summary>
+                      <pre>{JSON.stringify(visible.evidence, null, 2)}</pre>
+                    </details>
+                  )}
                 </details>
               </>
             ) : (
               <p>Loading saved attempt…</p>
             )}
+            <label className="attempt-picker">
+              Attempt history
+              <select
+                aria-label="Attempt history"
+                value={currentId}
+                onChange={(e) => {
+                  setSelectedId(e.target.value);
+                  setApproved(false);
+                }}
+              >
+                {attempts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    #{a.number} · {time(a.created_at)} ·{" "}
+                    {statusLabels[a.status] ?? a.status}
+                  </option>
+                ))}
+              </select>
+            </label>
           </>
         )}
       </div>

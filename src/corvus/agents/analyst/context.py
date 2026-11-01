@@ -91,24 +91,30 @@ def select_context(bundle):
     selected["gaps"].append(gap)
     selected["status"] = "partial"
     trigger = bundle["alert"]["context"]
-    guids = {
-        value
-        for value in (trigger.get("process_guid"), trigger.get("parent_process_guid"))
-        if isinstance(value, str) and value
-    }
     timestamp = utc(trigger["timestamp"])
 
     def rank(event):
         context = event["context"]
-        match = any(
-            isinstance(value, str) and value in guids
-            for value in (context.get("process_guid"), context.get("parent_process_guid"))
+        # Exact process first, then parent creation, children, and siblings.
+        matches = [
+            (context.get("process_guid"), trigger.get("process_guid")),
+            (context.get("process_guid"), trigger.get("parent_process_guid")),
+            (context.get("parent_process_guid"), trigger.get("process_guid")),
+            (context.get("parent_process_guid"), trigger.get("parent_process_guid")),
+        ]
+        relevance = next(
+            (
+                i
+                for i, (actual, expected) in enumerate(matches)
+                if isinstance(actual, str) and actual and actual == expected
+            ),
+            4,
         )
         try:
             distance = abs((utc(context["timestamp"]) - timestamp).total_seconds())
         except (KeyError, ValueError):
             distance = float("inf")
-        return not match, distance, json.dumps(event["reference"], sort_keys=True)
+        return relevance, distance, json.dumps(event["reference"], sort_keys=True)
 
     for event in sorted(bundle["events"], key=rank):
         if len(selected["events"]) >= MAX_EVENTS:

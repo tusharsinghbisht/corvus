@@ -85,6 +85,11 @@ def collect_attempt(settings, attempt, collector):
         )
         if len(json.dumps(bundle, ensure_ascii=False).encode()) > MAX_BUNDLE_BYTES:
             raise ValueError("Collection exceeds the saved bundle bound")
+        with connect(settings) as db:
+            db.execute(
+                "UPDATE triage_attempts SET evidence=%s WHERE id=%s AND status='collecting'",
+                (Jsonb(bundle), identifier),
+            )
         selected = select_context(bundle)
         digest = EvidenceCatalog(selected).digest
         with connect(settings) as db:

@@ -1,25 +1,5 @@
 import type { Citation, Evidence, Report } from "@/lib/investigations";
-
-function resolve(citation: Citation, evidence: Evidence) {
-  if ("path" in citation) {
-    if (citation.collection_id !== evidence.collection_id) return null;
-    const [field, index] = citation.path.slice(1).split("/");
-    if (!["status", "scope", "queries", "gaps", "limitations"].includes(field))
-      return null;
-    const value = evidence[field as keyof Evidence];
-    return index === undefined
-      ? value
-      : Array.isArray(value)
-        ? value[Number(index)]
-        : null;
-  }
-  return [evidence.alert, ...evidence.events].find(
-    ({ reference }) =>
-      reference.backend === citation.backend &&
-      reference.index === citation.index &&
-      reference.id === citation.id,
-  );
-}
+import { EvidenceMap, CitationFacts } from "./evidence-map";
 
 function Citations({
   citations,
@@ -37,14 +17,7 @@ function Citations({
               ? `Collection ${citation.path}`
               : `${citation.backend} / ${citation.index} / ${citation.id}`}
           </summary>
-          <pre>
-            {JSON.stringify(
-              resolve(citation, evidence) ??
-                "Reference unavailable in saved evidence",
-              null,
-              2,
-            )}
-          </pre>
+          <CitationFacts citation={citation} evidence={evidence} />
         </details>
       ))}
     </div>
@@ -70,6 +43,7 @@ export function InvestigationReport({
       <p className="muted">
         Summary findings: {report.summary_finding_ids.join(", ")}
       </p>
+      <EvidenceMap report={report} evidence={evidence} />
       <h3>Findings</h3>
       {report.findings.map((finding) => (
         <article className="finding" key={finding.id}>
@@ -95,7 +69,7 @@ export function InvestigationReport({
           </article>
         ))
       )}
-      <h3>Alternative explanations</h3>
+      <h3>Interpretation and alternative explanations</h3>
       {report.alternative_explanations.map((alternative, i) => (
         <article className="finding" key={i}>
           <p>{alternative.explanation}</p>

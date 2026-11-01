@@ -6,6 +6,7 @@ Corvus is an independent SOC investigation platform. Keep changes operational, u
 
 | Directory | Responsibility |
 | --- | --- |
+| `src/corvus/agents/analyst/` | Analyst prompt, context budget, and single-pass LangGraph workflow |
 | `src/corvus/adapters/` | Backend retrieval and normalization |
 | `src/corvus/providers/` | Replaceable model transports and private configuration |
 | `src/corvus/reporting/` | Evidence selection, report contract, validation |
@@ -19,11 +20,11 @@ Corvus is an independent SOC investigation platform. Keep changes operational, u
 | `infra/` | Deployment images, proxy configuration, operational helpers |
 | `docs/` | Architecture, operator workflows, deployment, integration setup |
 
-Keep collection, analysis, and response authority separate. Reuse the existing collector, Analyst interface, and validator rather than adding agent-framework abstractions. Provider/model identities belong in integration configuration and run provenance, not product copy.
+Keep collection, analysis, and response authority separate. Reuse the existing collector, Analyst interface, and validator rather than rebuilding transport or durable execution inside the agent. The requested LangGraph integration executes only the bounded single-pass Analyst; it must not introduce retries or evidence-exporting traces. Provider/model identities belong in integration configuration and run provenance, not product copy.
 
 ## Checks
 
-Python 3.11+ and Node.js are required. Use a virtual environment and the existing lockfile; do not add system services or dependencies without agreement.
+Python 3.11+ and Node.js are required. The authorized Wazuh VM is the development/runtime environment. Install dependencies and run tests there, from `/opt/corvus/app` after syncing committed source. Local work is source editing only; do not install packages, databases, or services locally. Use the existing Python virtual environment and frontend lockfile on the VM.
 
 ```bash
 .venv/bin/python -m pip install -e '.[server,dev]'
@@ -42,7 +43,7 @@ Read `web/AGENTS.md` and the installed Next.js guides before editing frontend co
 
 Database tests require `CORVUS_TEST_DATABASE_URL` pointing to a **disposable** PostgreSQL database, never the live database. Use the authorized VM for database services; do not install PostgreSQL locally. Tests create/drop isolated schemas. The workspace browser suite (`npm test -- --project workspace`) uses that variable and starts isolated API/web services. Models and evidence retrieval in these tests are offline fakes; tests must not make billable calls or send real evidence externally.
 
-To keep database traffic on the VM, run `tests/browser_server.py` from the VM checkout with its disposable database URL, forward its loopback port 8769 over SSH, and set `CORVUS_TEST_API_URL=http://127.0.0.1:8769` for the local workspace browser command. This skips starting a second test API locally. Keep the test database variable set to enable the workspace suite. Never point this override at the live API; the test API creates its own isolated schema and offline runtime.
+For VM browser checks, run `tests/browser_server.py` with the disposable database URL and use the official browser-test container, matching the locked Playwright version. Set `CORVUS_TEST_API_URL=http://127.0.0.1:8769` to use that isolated API. Mount the Git checkout, not a second application-code copy; keep `node_modules` in a development volume. Run `npm ci`, TypeScript/build, and browser suites sequentially inside the container. Both test services bind loopback only. Never point the API override or database variable at production. Do not install test dependencies locally.
 
 ## Change and deployment workflow
 

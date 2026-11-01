@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -174,6 +175,20 @@ class AnalystPolicyTests(ServerDatabaseCase):
         data = self.client.get("/api/settings/analyst").json()
         self.assertEqual(data["policies"][0]["used_hour"], 1)
         self.assertEqual(data["global_used_day"], 1)
+
+    def test_concurrent_reservations_do_not_exceed_budget(self):
+        self.enable(hourly_limit=1)
+        for i in range(4):
+            self.alert(str(i))
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            outcomes = list(pool.map(lambda _: self.reserve(), range(4)))
+        self.assertEqual(sum(value is not None for value in outcomes), 1)
+
+    def test_activation_never_enrolls_an_existing_backlog(self):
+        self.alert("existing-high")
+        response = self.client.put(self.path, json=self.body(), headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(self.reserve())
 
     def test_global_daily_cap_is_enforced(self):
         self.enable(hourly_limit=20, daily_limit=100)

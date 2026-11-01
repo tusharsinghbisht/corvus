@@ -1,14 +1,14 @@
 # Manual Analyst investigations
 
-Manual triage is a read-only workflow on an ingested alert. It does not close an incident, record human acceptance, or authorize containment. Ingestion alone never creates an investigation or calls a model.
+Manual triage is a read-only workflow on an ingested alert. It does not close an incident, record human acceptance, or authorize containment. Ingestion alone never authorizes a model call. Automatic processing requires a separate [connection policy](analyst-policies.md).
 
 ## Operator workflow
 
-1. Open an alert and select **Collect evidence**. This queues local collection only.
+1. Open an alert and select **Investigate with Analyst**. This queues local collection only.
 2. Inspect the saved input, collection scope, original sources, and gaps. The fixed scope is the alert's agent, five minutes either side of its indexed timestamp, up to 100 events per query, and a six-hour process-GUID ancestry pivot when available. The existing collector and read-only adapter perform retrieval; Corvus does not mirror archives.
 3. Check the external-processing acknowledgment and select **Approve one Analyst request**. Consent is recorded against this attempt's exact evidence digest, with the operator and approval time. The worker sends the saved evidence, not a later recollection. Evidence selection is **not redaction**; source data may contain personal information or secrets.
 4. Review findings, exact citations, alternative explanations, uncertainties, and collection gaps. References open the saved evidence rather than fetching mutable source documents. Passing validation means report integrity, not proven narrative entailment.
-5. Inspect attempt history for failures, rejected candidates, original replies, and provenance. **Collect new attempt** is an explicit retry with fresh collection and fresh consent. Earlier attempts remain intact.
+5. Inspect attempt history for failures, rejected candidates, original replies, and provenance. Starting a new investigation is an explicit retry with fresh collection and fresh consent. Earlier attempts remain intact.
 
 Unstarted collection, awaiting-approval work, and queued model work can be cancelled. A request already in flight cannot be cancelled from the browser; leaving the page does not cancel it. There are no automatic retries or alternate-model fallbacks.
 
@@ -42,11 +42,11 @@ Evidence bundles are capped at 16 MiB, with fixed document/query bounds and the 
 | Consumer election, recovery, collection, one model request | `src/corvus/server/investigations/worker.py` |
 | Ordered database upgrade | `src/corvus/server/migrations/002_triage.sql` |
 | Existing backend-independent collector | `src/corvus/evidence.py` |
-| Existing single-pass Analyst and validation | `src/corvus/analyst.py`, `src/corvus/reporting/` |
+| Existing single-pass Analyst and validation | `src/corvus/agents/analyst/`, `src/corvus/reporting/` |
 | Attempt controls and evidence inspection | `web/components/investigation.tsx` |
 | Advisory findings and saved citations | `web/components/investigation-report.tsx` |
 
-No agent framework, tool loop, scheduled triage, or response executor is introduced. Automatic mode remains planned and will require separate connection-level processing consent, eligibility, and request budgets; enabling ingestion or auto mode must never process a historical backlog implicitly.
+LangGraph runs the single-pass Analyst with no tool loop, graph retries, graph checkpoint replay, or external tracing. Automatic mode is independently opt-in per connection and cannot process a historical backlog. See [policies, context selection, and evidence maps](analyst-policies.md). There is no response executor.
 
 ## Deployment and verification
 

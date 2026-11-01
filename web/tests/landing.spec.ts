@@ -64,8 +64,10 @@ test("multi-agent architecture, planned orchestration, and FAQ disclosure", asyn
     "model-provider interface",
   );
   await expect(page.locator("#stack .tech-card")).toHaveCount(5);
-  await expect(page.locator(".tech-card-planned")).toContainText("LangGraph");
-  await expect(page.locator(".tech-card-planned")).toContainText("Planned");
+  await expect(
+    page.locator("#stack .tech-card").filter({ hasText: "LangGraph" }),
+  ).toContainText("single-pass Analyst");
+  await expect(page.locator(".agent-architecture")).toContainText("planned");
   await expect(page.locator("#stack")).not.toContainText("Azure");
   await expect(page.locator("#stack")).not.toContainText("DeepSeek");
   await page

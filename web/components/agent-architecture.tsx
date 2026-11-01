@@ -107,7 +107,7 @@ export function AgentArchitecture() {
           <h3>One investigation. Scoped specialists.</h3>
         </div>
         <span className="availability-tag">
-          LangGraph orchestration · planned
+          Multi-agent orchestration · planned
         </span>
       </div>
       <p className="agent-availability">

@@ -14,7 +14,7 @@ Saved evidence → selected input → Analyst → model-provider interface
                           private analysis artifact
 ```
 
-- `analyst.py` prepares input and invokes the `AnalystModel` interface once.
+- `agents/analyst/` owns context selection, versioned instructions, and a LangGraph prepare → one `AnalystModel` request → validate workflow. PostgreSQL owns durable authorization and recovery; graph retries, checkpoint replay, and external tracing are disabled.
 - `providers/` contains provider-specific transport and configuration adapters.
 - `reporting/schema.py` defines the report contract.
 - `reporting/evidence.py` selects evidence, resolves references, and computes its digest.
@@ -47,7 +47,7 @@ Output preserves the candidate, validation result/version, analysis ID, prompt v
 
 CLI files are private, exclusive, and never overwritten. Existing output is checked before a billable request. This CLI is not a durable job system; failure between a completed request and saving its response remains possible.
 
-The live application adds [durable manual investigations](manual-triage.md): saved bounded evidence, exact-digest approval, one request per attempt, preserved replies before validation, and attempt history. Interrupted/ambiguous model requests become unknown and require an explicit new attempt; they are not automatically retried. Model credentials are worker-only.
+The live application adds [durable manual investigations](manual-triage.md): saved bounded evidence, exact-digest approval, one request per attempt, preserved replies before validation, and attempt history. Interrupted/ambiguous model requests become unknown and require an explicit new attempt; they are not automatically retried. Model credentials are worker-only. See [Analyst policies and context](analyst-policies.md) for opt-in automatic eligibility, input budgets, and interactive evidence maps.
 
 Revalidate a saved candidate against its exact evidence:
 

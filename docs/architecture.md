@@ -32,7 +32,7 @@ Browser → Caddy HTTPS → Next.js
 
 - **Next.js:** public landing page and authenticated SOC interface. No credentials or model calls in browser code.
 - **Python API:** authenticated connection onboarding, alert queries, source inspection, sessions, and manual investigation/approval routes. No model credentials or calls.
-- **Worker:** checkpointed alert ingestion plus an independent manual-triage consumer using the existing collector and Analyst. Only explicitly approved attempts can make model calls.
+- **Worker:** checkpointed alert ingestion plus an independent manual-triage consumer using the existing collector and Analyst. Only per-attempt manual consent or a separately consented, bounded automatic policy can authorize model calls.
 - **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, audit events, investigation jobs/attempts, saved evidence, candidate reports, and provenance. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
 - **Docker Compose:** separate application services and persistent database volume. Existing Caddy provides HTTPS at `corvus.0xbenzo.dev`. No public database/indexer ports, Docker socket, or root application access.
 
@@ -48,7 +48,7 @@ Alert intake → Correlation ↔ Analyst → Policy / human approval → Contain
                   Shared case, evidence references, tasks, and audit history
 ```
 
-**Planned orchestration: LangGraph.** Explicit state transitions, checkpointing, and approval interrupts fit this workflow. It is not installed or running in the current deployment. A framework checkpoint does not guarantee exactly-once model calls or response execution; Corvus must still enforce request budgets, attempt tracking, idempotency, and policy outside agent prose.
+**LangGraph runs the single-pass Analyst today.** Agent-specific code lives in `src/corvus/agents/analyst/`: bounded context selection, versioned instructions, and prepare → one request → validate graph nodes. The graph has no retry policy or checkpointer; external tracing is disabled. PostgreSQL owns durable attempts, consent, request budgets, and recovery. Multi-agent handoffs, shared case orchestration, and response agents remain planned. A framework checkpoint would not guarantee exactly-once model calls or response execution.
 
 | Role | Responsibility and handoff | Current state |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ Timestamp polling has a bounded late-arrival horizon; it cannot guarantee captur
 The manual Analyst pipeline is deterministic: queue → bounded evidence collection → inspect/approve saved input → one model request → validation → preserved candidate requiring human review. A recorded human-review lifecycle is not implemented.
 
 - **Manual is the default.** Each request explicitly acknowledges external evidence processing.
-- **Auto is planned, not implemented.** It must be opt-in per connection with separate consent, a minimum rule level, and hourly/global daily request limits. Do not process a historical backlog merely because auto was enabled.
+- **Auto is opt-in per connection.** Separate external-processing consent, medium+/high+/critical eligibility, rolling connection/global budgets, and a fresh activation boundary are required. Only new 5–15-minute-old alerts qualify; historical backlogs and previously investigated alerts are excluded. See [Analyst policies and context](analyst-policies.md).
 - Permit one active job per alert. Preserve failures and retries as separate attempts.
 - Allow a short post-alert collection window. Partial evidence cannot become benign clearance.
 - Do not automatically retry a model call after a crash or ambiguous timeout; it may already have been billed.

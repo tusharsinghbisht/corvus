@@ -75,6 +75,7 @@ export function AlertDetail({ id }: { id: string }) {
           </div>
         </div>
       </div>
+      <Investigation key={id} alertId={id} connectionId={alert.connection_id} />
       <div className="detail-grid">
         <section className="panel">
           <div className="panel-heading">
@@ -121,7 +122,6 @@ export function AlertDetail({ id }: { id: string }) {
           </p>
         </section>
       </div>
-      <Investigation key={id} alertId={id} />
       <section className="panel source-panel">
         <details>
           <summary>

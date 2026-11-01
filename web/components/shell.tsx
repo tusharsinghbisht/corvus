@@ -10,6 +10,9 @@ import {
   ArrowUpRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Workflow,
+  Settings2,
+  ChevronDown,
 } from "lucide-react";
 import { Brand } from "./brand";
 import { api, ApiError } from "@/lib/api";
@@ -22,6 +25,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const [agentsOpen, setAgentsOpen] = useState(path.startsWith("/soc/agents"));
   const content = useRef<HTMLElement>(null);
   useEffect(() => {
     content.current?.scrollTo({ top: 0, left: 0 });
@@ -79,6 +83,8 @@ export function Shell({ children }: { children: ReactNode }) {
     );
   const alertsActive = path === "/soc" || path.startsWith("/soc/alerts");
   const connectionsActive = path.startsWith("/soc/connections");
+  const agentsActive = path.startsWith("/soc/agents");
+  const settingsActive = path.startsWith("/soc/settings");
   return (
     <div className={`soc${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside
@@ -120,6 +126,54 @@ export function Shell({ children }: { children: ReactNode }) {
             <SlidersHorizontal size={18} />
             <span className="nav-label">Connections</span>
           </Link>
+          <div className="agent-nav">
+            <button
+              className={`nav-group ${agentsActive ? "active" : ""}`}
+              aria-label="Agents"
+              aria-expanded={agentsOpen && !collapsed}
+              aria-controls="agent-navigation"
+              title={collapsed ? "Agents" : undefined}
+              onClick={() => {
+                if (collapsed) {
+                  toggleSidebar();
+                  setAgentsOpen(true);
+                } else setAgentsOpen(!agentsOpen);
+              }}
+            >
+              <Workflow size={18} />
+              <span className="nav-label">Agents</span>
+              <ChevronDown size={13} className="nav-chevron" />
+            </button>
+            {agentsOpen && !collapsed && (
+              <div id="agent-navigation" className="agent-navigation">
+                <Link
+                  href="/soc/agents/analyst"
+                  className={agentsActive ? "active" : ""}
+                  aria-current={agentsActive ? "page" : undefined}
+                >
+                  Analyst<span>Active</span>
+                </Link>
+                {["Correlation", "Intel", "Containment", "Verification"].map(
+                  (agent) => (
+                    <div key={agent} className="planned-agent">
+                      <span>{agent}</span>
+                      <small>Planned</small>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+          <Link
+            href="/soc/settings"
+            className={settingsActive ? "active" : ""}
+            aria-current={settingsActive ? "page" : undefined}
+            aria-label="Settings"
+            title={collapsed ? "Settings" : undefined}
+          >
+            <Settings2 size={18} />
+            <span className="nav-label">Settings</span>
+          </Link>
         </nav>
         <div className="sidebar-bottom">
           <span className="read-only" title="Read-only access">
@@ -156,7 +210,15 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
             <span className="muted">Workspace</span>
             <span className="slash">/</span>
-            <span>{connectionsActive ? "Connections" : "Alerts"}</span>
+            <span>
+              {settingsActive
+                ? "Settings"
+                : agentsActive
+                  ? "Agents / Analyst"
+                  : connectionsActive
+                    ? "Connections"
+                    : "Alerts"}
+            </span>
           </div>
           <div className="account">
             <span>{user.username}</span>
