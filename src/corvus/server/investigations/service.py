@@ -39,7 +39,10 @@ def detail(db, alert_id, attempt_id):
     if not row:
         raise HTTPException(404, "Investigation attempt not found")
     selected = row["analysis_evidence"] or row["evidence"]
-    row["prepared_input"] = prepare_report(selected) if selected else None
+    row["prepared_input"] = row["input_snapshot"] or (
+        prepare_report(selected) if selected else None
+    )
+    row["prepared_input_reconstructed"] = bool(selected and not row["input_snapshot"])
     return row
 
 

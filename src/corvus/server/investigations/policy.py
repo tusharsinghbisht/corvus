@@ -165,6 +165,10 @@ def schedule(db):
             {
                 "connection_id": str(policy["connection_id"]),
                 "consent_at": policy["consent_at"].isoformat(),
+                "global_daily_limit": db.execute(
+                    "SELECT daily_limit FROM analyst_settings WHERE singleton"
+                ).fetchone()["daily_limit"],
+                "activation_boundary": policy["activated_at"].isoformat(),
             }
         )
         db.execute(

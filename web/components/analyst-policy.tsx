@@ -101,6 +101,11 @@ export function AnalystPolicyCard({
             Automatic
           </button>
         </div>
+        {changed && (
+          <p className="plain-tag">
+            Unsaved changes · mode changes apply only after saving
+          </p>
+        )}
         <p className="muted">
           Connection-level policy · {policy.name}. Manual investigation is
           always available. Switching modes never analyzes this historical alert

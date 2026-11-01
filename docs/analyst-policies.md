@@ -36,7 +36,7 @@ A database transaction lock serializes reservations and policy changes. The exis
 
 If substantive content is omitted, the selected bundle is partial and records `analyst_context_reduced`. Existing validation requires acknowledging this gap and forbids benign clearance from partial evidence. Selection is **not redaction**. A smaller prompt does not guarantee correct reasoning or prevent sensitive data transfer; manual inspection or standing consent is still required.
 
-The selected bundle is stored as `analysis_evidence`, alongside unmodified collected `evidence`. Approval, invocation, report validation, and citations bind to its exact digest. Old attempts without selected bundles continue to use their original evidence/digest; they are never retroactively rewritten.
+The selected bundle is stored as `analysis_evidence`, alongside unmodified collected `evidence`. New attempts also retain an `input_snapshot` containing the exact prompt, schema, and selected evidence; invocation does not silently regenerate a different prompt after approval. Approval, invocation, report validation, and citations bind to the selected digest. Old attempts without selected bundles continue to use their original evidence/digest; they are never retroactively rewritten.
 
 ## Agent boundaries and interface
 

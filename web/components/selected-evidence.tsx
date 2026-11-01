@@ -76,7 +76,14 @@ export function SelectedEvidence({
           </ul>
         </details>
         <details>
-          <summary>Technical input · exact JSON and prompt</summary>
+          <summary>Technical input · selected JSON and prompt</summary>
+          {attempt.prepared_input_reconstructed && (
+            <p className="muted">
+              Historical input reconstructed using the current prompt. The
+              original attempt's prompt version is retained in provenance; its
+              exact prompt text was not saved.
+            </p>
+          )}
           <pre>{JSON.stringify(attempt.prepared_input, null, 2)}</pre>
         </details>
       </details>

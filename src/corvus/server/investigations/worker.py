@@ -13,7 +13,7 @@ from threading import Event
 from psycopg.types.json import Jsonb
 
 from ... import __version__
-from ...agents.analyst import PROMPT_VERSION, analyze, prepare_report
+from ...agents.analyst import analyze, prepare_report
 from ...agents.analyst.context import select_context
 from ...errors import BackendError
 from ...evidence import collect
@@ -95,8 +95,14 @@ def collect_attempt(settings, attempt, collector):
         with connect(settings) as db:
             db.execute(
                 """UPDATE triage_attempts SET status='awaiting_approval',evidence=%s,
-                analysis_evidence=%s,evidence_digest=%s WHERE id=%s AND status='collecting'""",
-                (Jsonb(bundle), Jsonb(selected), digest, identifier),
+                analysis_evidence=%s,input_snapshot=%s,evidence_digest=%s WHERE id=%s AND status='collecting'""",
+                (
+                    Jsonb(bundle),
+                    Jsonb(selected),
+                    Jsonb(prepare_report(selected)),
+                    digest,
+                    identifier,
+                ),
             )
             if attempt["mode"] == "automatic":
                 if policy.authorize(db, attempt):
@@ -122,8 +128,13 @@ def analyze_attempt(settings, attempt, model_factory):
     identifier = attempt["id"]
     try:
         selected = attempt["analysis_evidence"] or attempt["evidence"]
-        prepared = prepare_report(selected)
-        if prepared["evidence_digest"] != attempt["approved_digest"]:
+        prepared = attempt["input_snapshot"] or prepare_report(selected)
+        catalog = EvidenceCatalog(selected)
+        if (
+            prepared["evidence_digest"] != attempt["approved_digest"]
+            or catalog.digest != attempt["approved_digest"]
+            or prepared["evidence"] != catalog.view
+        ):
             fail(settings, identifier, "failed", "evidence_binding_changed")
             return
         model, provider = model_factory()
@@ -132,7 +143,7 @@ def analyze_attempt(settings, attempt, model_factory):
             **provider,
             "context_selection": selected.get("scope", {}).get("context_selection"),
             "orchestration": "langgraph:analyst.single_pass.v1",
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": prepared["prompt_version"],
             "corvus_version": __version__,
             "revision": os.environ.get("CORVUS_REVISION", "unknown"),
             "collection_scope": COLLECTION_SCOPE,
@@ -179,7 +190,7 @@ def analyze_attempt(settings, attempt, model_factory):
             )
 
     try:
-        result = analyze(selected, model, on_reply=save_reply)
+        result = analyze(selected, model, on_reply=save_reply, input_snapshot=prepared)
         with connect(settings) as db:
             db.execute(
                 """UPDATE triage_attempts SET status=%s,result=%s,completed_at=now(),

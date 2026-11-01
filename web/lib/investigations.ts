@@ -75,6 +75,7 @@ export type AttemptDetail = Attempt & {
   analysis_evidence: Evidence | null;
   mode: "manual" | "automatic";
   prepared_input: Record<string, unknown> | null;
+  prepared_input_reconstructed?: boolean;
   model_reply: {
     content: string;
     model: string;

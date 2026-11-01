@@ -27,6 +27,7 @@ class AnalystState(TypedDict, total=False):
     bundle: dict
     model: Any
     on_reply: Any
+    input_snapshot: Any
     prepared: dict
     messages: list
     started_at: str
@@ -48,7 +49,10 @@ def prepare_report(bundle):
 
 
 def prepare(state):
-    prepared = prepare_report(state["bundle"])
+    prepared = state.get("input_snapshot") or prepare_report(state["bundle"])
+    catalog = EvidenceCatalog(state["bundle"])
+    if prepared["evidence_digest"] != catalog.digest or prepared["evidence"] != catalog.view:
+        raise ValueError("Prepared input does not match saved selected evidence")
     return {
         "prepared": prepared,
         "messages": [
@@ -89,7 +93,7 @@ def validate(state):
         "completed_at": iso(datetime.now(timezone.utc)),
         "status": "validated" if validation["valid"] else "rejected",
         "human_review_required": True,
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": state["prepared"]["prompt_version"],
         "evidence_digest": state["prepared"]["evidence_digest"],
         "orchestration": {"framework": "langgraph", "workflow": "analyst.single_pass.v1"},
         "model": {
@@ -121,11 +125,16 @@ def build_graph():
 _GRAPH = build_graph()
 
 
-def analyze(bundle, model: AnalystModel, *, on_reply=None):
+def analyze(bundle, model: AnalystModel, *, on_reply=None, input_snapshot=None):
     # External tracing must not create a second, unapproved evidence destination.
     with tracing_context(enabled=False):
         state = _GRAPH.invoke(
-            {"bundle": bundle, "model": model, "on_reply": on_reply},
+            {
+                "bundle": bundle,
+                "model": model,
+                "on_reply": on_reply,
+                "input_snapshot": input_snapshot,
+            },
             config={"recursion_limit": 8, "callbacks": []},
         )
     return state["result"]

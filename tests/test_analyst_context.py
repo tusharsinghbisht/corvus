@@ -4,9 +4,9 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from corvus.agents.analyst import analyze
+from corvus.agents.analyst import analyze, prepare_report
 from corvus.agents.analyst.context import MAX_BYTES, MAX_EVENTS, encoded, select_context
-from corvus.providers import ModelError
+from corvus.providers import ModelError, ModelReply
 from corvus.reporting.evidence import EvidenceCatalog
 from corvus.storage import load_json
 
@@ -58,6 +58,24 @@ class AnalystContextTests(unittest.TestCase):
         self.assertLessEqual(
             len(encoded(EvidenceCatalog(select_context(self.bundle)).view)), MAX_BYTES
         )
+
+    def test_graph_uses_saved_approved_input_instead_of_regenerating_prompt(self):
+        prepared = prepare_report(self.bundle)
+        prepared["instructions"] = "Saved read-only instructions"
+        prepared["prompt_version"] = "saved-version"
+        report = load_json(ROOT / "reference-reports/001.json")
+        model = Mock()
+        model.complete.return_value = ModelReply(json.dumps(report), "test", {})
+        with patch(
+            "corvus.agents.analyst.workflow.prepare_report",
+            side_effect=AssertionError("Must not regenerate"),
+        ):
+            result = analyze(self.bundle, model, input_snapshot=prepared)
+        self.assertEqual(result["prompt_version"], "saved-version")
+        self.assertEqual(
+            model.complete.call_args.args[0][0]["content"], "Saved read-only instructions"
+        )
+        model.complete.assert_called_once()
 
     def test_langgraph_does_not_retry_or_enable_external_tracing(self):
         model = Mock()

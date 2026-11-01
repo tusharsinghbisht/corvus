@@ -119,7 +119,7 @@ export function Investigation({
     }
   }
   const visible =
-    detail?.id === currentId && detail.status === selectedStatus
+    detail?.id === currentId && detail?.status === selectedStatus
       ? detail
       : null;
   const evidence = visible?.analysis_evidence ?? visible?.evidence;

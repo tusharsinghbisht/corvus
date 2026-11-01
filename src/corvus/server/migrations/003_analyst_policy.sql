@@ -1,4 +1,5 @@
 ALTER TABLE triage_attempts ADD COLUMN analysis_evidence jsonb;
+ALTER TABLE triage_attempts ADD COLUMN input_snapshot jsonb;
 ALTER TABLE triage_attempts ADD COLUMN mode text NOT NULL DEFAULT 'manual' CHECK (mode IN ('manual','automatic'));
 ALTER TABLE triage_attempts ADD COLUMN policy_version integer;
 CREATE UNIQUE INDEX triage_one_automatic ON triage_attempts(job_id) WHERE mode='automatic';
