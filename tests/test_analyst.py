@@ -6,7 +6,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from corvus.analyst import analyze
+from corvus.agents.analyst import analyze
 from corvus.cli import main
 from corvus.providers import ModelReply
 from corvus.providers.azure_foundry import FoundryConfig

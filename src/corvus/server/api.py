@@ -1,6 +1,7 @@
 """Authenticated alert queue and manual investigations. No model credentials or calls here."""
 
 from contextlib import asynccontextmanager
+from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from ..errors import BackendError, ConfigError
 from . import alerts, auth, connections
 from .database import audit, connect, initialize
+from .investigations import policy
 from .investigations import service as triage
 from .settings import Settings
 
@@ -39,6 +41,21 @@ class ProcessingApproval(BaseModel):
     model_config = ConfigDict(extra="forbid")
     allow_external: StrictBool
     evidence_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class AnalystPolicyInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: StrictBool
+    allow_external: StrictBool = False
+    minimum_level: Literal[7, 12, 15]
+    hourly_limit: int = Field(ge=1, le=20, strict=True)
+    daily_limit: int = Field(ge=1, le=100, strict=True)
+    version: int = Field(ge=0, strict=True)
+
+
+class AnalystBudgetInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    daily_limit: int = Field(ge=1, le=200, strict=True)
 
 
 def create_app(settings):
@@ -244,6 +261,41 @@ def create_app(settings):
         with connect(settings) as db:
             triage.cancel(db, identifier, attempt_id, current["id"])
         return {"ok": True}
+
+    @app.get("/api/settings/analyst")
+    def analyst_settings(current=Depends(user)):
+        with connect(settings) as db:
+            return policy.listing(db)
+
+    @app.put("/api/settings/analyst/connections/{identifier}")
+    def analyst_policy(identifier: UUID, body: AnalystPolicyInput, current=Depends(user)):
+        with connect(settings) as db:
+            policy.update(db, identifier, body, current["id"])
+            return policy.listing(db)
+
+    @app.put("/api/settings/analyst/budget")
+    def analyst_budget(body: AnalystBudgetInput, current=Depends(user)):
+        with connect(settings) as db:
+            policy.lock(db)
+            db.execute(
+                "UPDATE analyst_settings SET daily_limit=%s WHERE singleton", (body.daily_limit,)
+            )
+            audit(db, "analyst.global_budget_changed", user_id=current["id"])
+            return policy.listing(db)
+
+    @app.get("/api/agents/analyst")
+    def analyst_overview(current=Depends(user)):
+        with connect(settings) as db:
+            stats = db.execute("""SELECT count(*) AS total,
+                count(*) FILTER(WHERE status IN ('pending_collection','collecting','awaiting_approval','queued','requesting')) AS active,
+                count(*) FILTER(WHERE status='validated') AS reports,
+                count(*) FILTER(WHERE status IN ('failed','unknown','rejected')) AS attention
+                FROM triage_attempts""").fetchone()
+            attempts = db.execute("""SELECT a.id,a.number,a.status,a.mode,a.created_at,a.completed_at,a.error_code,
+                j.alert_id,e.title,e.rule_level,e.agent_name,a.result->'report'->>'disposition' AS disposition
+                FROM triage_attempts a JOIN triage_jobs j ON j.id=a.job_id JOIN alerts e ON e.id=j.alert_id
+                ORDER BY a.created_at DESC,a.id DESC LIMIT 50""").fetchall()
+            return {"stats": stats, "attempts": attempts, **policy.listing(db)}
 
     return app
 

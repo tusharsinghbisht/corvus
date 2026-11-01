@@ -4,14 +4,14 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from ...analyst import prepare_report
+from ...agents.analyst import prepare_report
 from ...reporting.evidence import EvidenceCatalog
 from ..database import audit
 
 ACTIVE = ("pending_collection", "collecting", "awaiting_approval", "queued", "requesting")
 SUMMARY = """id,job_id,number,requested_by,created_at,status,collection_started_at,
     evidence_digest,approved_by,approved_at,approved_digest,request_started_at,
-    completed_at,provenance,error_code"""
+    completed_at,provenance,error_code,mode,policy_version"""
 
 
 def require_alert(db, alert_id):
@@ -38,11 +38,12 @@ def detail(db, alert_id, attempt_id):
     ).fetchone()
     if not row:
         raise HTTPException(404, "Investigation attempt not found")
-    row["prepared_input"] = prepare_report(row["evidence"]) if row["evidence"] else None
+    selected = row["analysis_evidence"] or row["evidence"]
+    row["prepared_input"] = prepare_report(selected) if selected else None
     return row
 
 
-def request_collection(db, alert_id, user_id):
+def request_collection(db, alert_id, user_id, *, automatic=False):
     require_alert(db, alert_id)
     # The job row serializes new attempts, including simultaneous first requests.
     db.execute(
@@ -57,6 +58,11 @@ def request_collection(db, alert_id, user_id):
         (job["id"], list(ACTIVE)),
     ).fetchone():
         raise HTTPException(409, "An investigation is already active for this alert")
+    if (
+        automatic
+        and db.execute("SELECT 1 FROM triage_attempts WHERE job_id=%s", (job["id"],)).fetchone()
+    ):
+        raise HTTPException(409, "This alert already has an investigation attempt")
     number = db.execute(
         "SELECT coalesce(max(number),0)+1 AS n FROM triage_attempts WHERE job_id=%s",
         (job["id"],),
@@ -81,7 +87,10 @@ def approve(db, alert_id, attempt_id, digest, user_id):
         raise HTTPException(404, "Investigation attempt not found")
     if row["status"] != "awaiting_approval":
         raise HTTPException(409, "This attempt is not awaiting approval; refresh its state")
-    if digest != row["evidence_digest"] or digest != EvidenceCatalog(row["evidence"]).digest:
+    if (
+        digest != row["evidence_digest"]
+        or digest != EvidenceCatalog(row["analysis_evidence"] or row["evidence"]).digest
+    ):
         raise HTTPException(409, "Evidence changed; inspect the exact saved bundle before approval")
     db.execute(
         """UPDATE triage_attempts SET status='queued',approved_by=%s,approved_at=now(),

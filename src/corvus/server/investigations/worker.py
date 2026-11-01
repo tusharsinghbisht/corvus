@@ -13,7 +13,8 @@ from threading import Event
 from psycopg.types.json import Jsonb
 
 from ... import __version__
-from ...analyst import PROMPT_VERSION, analyze, prepare_report
+from ...agents.analyst import PROMPT_VERSION, analyze, prepare_report
+from ...agents.analyst.context import select_context
 from ...errors import BackendError
 from ...evidence import collect
 from ...providers import ModelError
@@ -21,6 +22,7 @@ from ...providers.azure_foundry import AzureFoundryClient, load_foundry_config
 from ...reporting.evidence import EvidenceCatalog
 from ..connections import adapter
 from ..database import audit, connect
+from . import policy
 
 logger = logging.getLogger("corvus.triage")
 COLLECTION_SCOPE = {"window_minutes": 5, "ancestry_hours": 6, "limit": 100}
@@ -83,13 +85,28 @@ def collect_attempt(settings, attempt, collector):
         )
         if len(json.dumps(bundle, ensure_ascii=False).encode()) > MAX_BUNDLE_BYTES:
             raise ValueError("Collection exceeds the saved bundle bound")
-        digest = EvidenceCatalog(bundle).digest
+        selected = select_context(bundle)
+        digest = EvidenceCatalog(selected).digest
         with connect(settings) as db:
             db.execute(
                 """UPDATE triage_attempts SET status='awaiting_approval',evidence=%s,
-                evidence_digest=%s WHERE id=%s AND status='collecting'""",
-                (Jsonb(bundle), digest, identifier),
+                analysis_evidence=%s,evidence_digest=%s WHERE id=%s AND status='collecting'""",
+                (Jsonb(bundle), Jsonb(selected), digest, identifier),
             )
+            if attempt["mode"] == "automatic":
+                if policy.authorize(db, attempt):
+                    db.execute(
+                        """UPDATE triage_attempts SET status='queued',approved_by=requested_by,
+                        approved_at=now(),approved_digest=evidence_digest WHERE id=%s""",
+                        (identifier,),
+                    )
+                    audit(db, "triage.policy_authorized", identifier)
+                else:
+                    db.execute(
+                        """UPDATE triage_attempts SET status='cancelled',completed_at=now(),
+                        error_code='automation_policy_changed_or_expired' WHERE id=%s""",
+                        (identifier,),
+                    )
             audit(db, "triage.evidence_saved", identifier)
     except Exception as exc:
         code = exc.code if isinstance(exc, BackendError) else "collection_failed"
@@ -99,13 +116,17 @@ def collect_attempt(settings, attempt, collector):
 def analyze_attempt(settings, attempt, model_factory):
     identifier = attempt["id"]
     try:
-        prepared = prepare_report(attempt["evidence"])
+        selected = attempt["analysis_evidence"] or attempt["evidence"]
+        prepared = prepare_report(selected)
         if prepared["evidence_digest"] != attempt["approved_digest"]:
             fail(settings, identifier, "failed", "evidence_binding_changed")
             return
         model, provider = model_factory()
         provenance = {
+            **(attempt["provenance"] or {}),
             **provider,
+            "context_selection": selected.get("scope", {}).get("context_selection"),
+            "orchestration": "langgraph:analyst.single_pass.v1",
             "prompt_version": PROMPT_VERSION,
             "corvus_version": __version__,
             "revision": os.environ.get("CORVUS_REVISION", "unknown"),
@@ -118,6 +139,14 @@ def analyze_attempt(settings, attempt, model_factory):
 
     # This commit is the no-auto-retry boundary, BEFORE any possibly billable call.
     with connect(settings) as db:
+        if attempt["mode"] == "automatic" and not policy.authorize(db, attempt):
+            db.execute(
+                """UPDATE triage_attempts SET status='cancelled',completed_at=now(),
+                error_code='automation_policy_changed_or_expired' WHERE id=%s AND status='queued'""",
+                (identifier,),
+            )
+            audit(db, "triage.automatic_cancelled", identifier)
+            return
         row = db.execute(
             """UPDATE triage_attempts SET status='requesting',request_started_at=now(),
             provenance=%s WHERE id=%s AND status='queued' RETURNING id""",
@@ -145,7 +174,7 @@ def analyze_attempt(settings, attempt, model_factory):
             )
 
     try:
-        result = analyze(attempt["evidence"], model, on_reply=save_reply)
+        result = analyze(selected, model, on_reply=save_reply)
         with connect(settings) as db:
             db.execute(
                 """UPDATE triage_attempts SET status=%s,result=%s,completed_at=now(),
@@ -179,6 +208,7 @@ def run_once(settings, *, collector=collect, model_factory=configured_model):
         try:
             with connect(settings) as db:
                 recover(db)
+                policy.schedule(db)
                 attempt = db.execute(
                     """SELECT * FROM triage_attempts WHERE status IN ('pending_collection','queued')
                     ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED"""

@@ -24,7 +24,15 @@ def initialize(settings):
             db.execute(
                 Path(__file__).with_name("migrations").joinpath("002_triage.sql").read_text()
             )
-        elif version != 2:
+            version = 2
+        if version == 2:
+            db.execute(
+                Path(__file__)
+                .with_name("migrations")
+                .joinpath("003_analyst_policy.sql")
+                .read_text()
+            )
+        elif version != 3:
             raise ValueError("Unsupported database schema version")
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             db.execute(

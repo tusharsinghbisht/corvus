@@ -15,7 +15,8 @@ from psycopg.conninfo import make_conninfo
 from test_ingestion import document
 from test_server import ServerDatabaseCase
 
-from corvus.analyst import analyze
+from corvus.agents.analyst import analyze
+from corvus.agents.analyst.context import select_context
 from corvus.errors import BackendError
 from corvus.providers import ModelError, ModelReply
 from corvus.reporting.evidence import EvidenceCatalog
@@ -39,6 +40,7 @@ class TriageTests(ServerDatabaseCase):
         self.api_path = f"/api/alerts/{self.alert_id}/investigations"
         self.bundle = load_json(ROOT / "fixtures/001.json")
         self.report = load_json(ROOT / "reference-reports/001.json")
+        self.report["evidence_digest"] = EvidenceCatalog(select_context(self.bundle)).digest
         self.model = Mock()
         self.model.complete.return_value = ModelReply(
             json.dumps(self.report), "test-served", {"total_tokens": 30}
@@ -79,7 +81,9 @@ class TriageTests(ServerDatabaseCase):
         attempt = self.read(identifier)
         self.assertEqual(attempt["status"], "awaiting_approval")
         self.assertEqual(attempt["evidence"], self.bundle)
-        self.assertEqual(attempt["evidence_digest"], EvidenceCatalog(self.bundle).digest)
+        self.assertEqual(
+            attempt["evidence_digest"], EvidenceCatalog(select_context(self.bundle)).digest
+        )
         self.factory.assert_not_called()
         self.tick()
         self.model.complete.assert_not_called()
@@ -93,7 +97,7 @@ class TriageTests(ServerDatabaseCase):
         self.assertEqual(attempt["model_reply"]["content"], json.dumps(self.report))
         self.assertEqual(attempt["result"]["model"]["served_model"], "test-served")
         self.assertEqual(attempt["provenance"]["requested_model"], "test-requested")
-        self.assertEqual(attempt["provenance"]["prompt_version"], "0.3")
+        self.assertEqual(attempt["provenance"]["prompt_version"], "0.4")
         self.assertTrue(attempt["result"]["human_review_required"])
         self.model.complete.assert_called_once()
         self.collector.assert_called_once()
@@ -182,7 +186,8 @@ class TriageTests(ServerDatabaseCase):
 
         def fail_after_reply(bundle, model, **kwargs):
             with patch(
-                "corvus.analyst.validate_report", side_effect=RuntimeError("private details")
+                "corvus.agents.analyst.workflow.validate_report",
+                side_effect=RuntimeError("private details"),
             ):
                 return analyze(bundle, model, **kwargs)
 
@@ -290,7 +295,7 @@ class TriageTests(ServerDatabaseCase):
         self.approve(identifier)
         with connect(self.settings) as db:
             db.execute(
-                "UPDATE triage_attempts SET evidence=jsonb_set(evidence,'{status}','\"partial\"') WHERE id=%s",
+                "UPDATE triage_attempts SET analysis_evidence=jsonb_set(analysis_evidence,'{status}','\"partial\"') WHERE id=%s",
                 (identifier,),
             )
         self.tick()
@@ -387,7 +392,7 @@ class TriageTests(ServerDatabaseCase):
             initialize(config)
             with connect(config) as db:
                 self.assertEqual(
-                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 2
+                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 3
                 )
                 self.assertEqual(db.execute("SELECT count(*) AS n FROM alerts").fetchone()["n"], 1)
                 self.assertEqual(

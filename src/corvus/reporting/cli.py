@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from ..analyst import analyze, prepare_report
+from ..agents.analyst import analyze, prepare_report
 from ..evaluation import evaluate_suite
 from ..providers.azure_foundry import AzureFoundryClient, load_foundry_config
 from ..storage import load_json, save_private

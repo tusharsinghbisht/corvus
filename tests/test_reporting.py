@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
-from corvus.analyst import prepare_report
+from corvus.agents.analyst import prepare_report
 from corvus.evaluation import evaluate_report, evaluate_suite
 from corvus.reporting.evidence import EvidenceCatalog
 from corvus.reporting.schema import REPORT_SCHEMA

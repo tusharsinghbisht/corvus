@@ -60,6 +60,8 @@ def main():
 
             def complete(self, messages):
                 self.calls += 1
+                prepared = json.loads(messages[-1]["content"])
+                report["evidence_digest"] = prepared["evidence_digest"]
                 if self.calls == 3:
                     raise ModelError(
                         "incomplete_model_response",
