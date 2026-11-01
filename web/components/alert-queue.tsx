@@ -28,12 +28,13 @@ export function AlertQueue() {
   const [error, setError] = useState("");
   const cursor = cursors[cursors.length - 1];
   useEffect(() => {
+    if (search === query) return;
     const timer = setTimeout(() => {
       setQuery(search);
       setCursors([null]);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, query]);
   useEffect(() => {
     const controller = new AbortController();
     let sequence = 0;

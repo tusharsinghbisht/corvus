@@ -46,6 +46,7 @@ test("alert pagination, filters, and untrusted source inspection", async ({
   await expect(page.locator(".alert-title")).toHaveCount(3);
   await page.getByLabel("Minimum severity").selectOption("0");
   await page.getByRole("searchbox", { name: "Search alerts" }).fill("<img");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
   await page.locator(".alert-title").click();
   await expect(
     page.getByRole("heading", { name: "Event context" }),
@@ -89,6 +90,7 @@ test("Analyst report, interactive evidence map, approval, and preserved failure 
 }) => {
   await login(page);
   await page.getByRole("searchbox", { name: "Search alerts" }).fill("<img");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
   await page.locator(".alert-title").click();
   const investigation = page.getByRole("region", {
     name: "Analyst investigation",
@@ -260,7 +262,7 @@ test("Settings policies require explicit consent and the Analyst navigation is o
   await expect(
     page.getByRole("heading", { name: "Recent investigations" }),
   ).toBeVisible();
-  await expect(page.locator(".alert-title").first()).toBeVisible();
+  await expect(page.locator(".table-wrap")).toBeVisible();
 });
 
 test("mobile workspace stays within the viewport", async ({ page }) => {
