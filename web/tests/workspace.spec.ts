@@ -4,6 +4,27 @@ test.skip(
   !process.env.CORVUS_TEST_DATABASE_URL,
   "Workspace tests require disposable PostgreSQL",
 );
+function observeUiErrors(page: Page) {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.name));
+  page.on("console", (message) => {
+    // Expected authentication/conflict HTTP responses are asserted separately.
+    if (
+      message.type() === "error" &&
+      !message.text().startsWith("Failed to load resource")
+    )
+      errors.push(message.text());
+  });
+  return errors;
+}
+const uiErrors = new WeakMap<Page, string[]>();
+test.beforeEach(async ({ page }) => {
+  uiErrors.set(page, observeUiErrors(page));
+});
+test.afterEach(async ({ page }) => {
+  expect(uiErrors.get(page) ?? []).toEqual([]);
+});
+
 async function login(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Username", { exact: true }).fill("test-admin");
@@ -251,6 +272,7 @@ test("human review is evidence-bound, survives reload, handles stale tabs, and u
     review.getByRole("heading", { name: "Human review", exact: true }),
   ).toBeVisible();
   const peer = await context.newPage();
+  const peerErrors = observeUiErrors(peer);
   await peer.goto(page.url());
   const peerReview = peer.getByRole("region", {
     name: "Human assessment review",
@@ -363,6 +385,7 @@ test("human review is evidence-bound, survives reload, handles stale tabs, and u
   await page.getByLabel("Human review filter").selectOption("pending");
   await expect(page.locator(".alert-title")).toHaveCount(0);
   expect(started).toEqual([]);
+  expect(peerErrors).toEqual([]);
 });
 
 test("Settings policies require explicit consent and the Analyst navigation is operational", async ({

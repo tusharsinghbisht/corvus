@@ -57,6 +57,8 @@ def load_attempt(db, alert_id, attempt_id, *, lock=False):
 
 
 def page(db, attempt, *, before=None):
+    # Read the current version and history together; review writers lock this row.
+    db.execute("SELECT id FROM triage_attempts WHERE id=%s FOR SHARE", (attempt["id"],))
     binding = target(attempt)
     latest = db.execute(
         f"SELECT {FIELDS} FROM report_reviews r JOIN users u ON u.id=r.reviewer_id WHERE r.attempt_id=%s ORDER BY r.sequence DESC LIMIT 1",

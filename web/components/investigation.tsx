@@ -286,13 +286,13 @@ export function Investigation({
                       )}
                     </div>
                     <InvestigationReport
-                      key={currentId}
+                      key={`report-${currentId}`}
                       report={report}
                       evidence={evidence}
                     />
                     {humanReview && (
                       <ReportReviewPanel
-                        key={visible.id}
+                        key={`review-${visible.id}`}
                         alertId={alertId}
                         attemptId={visible.id}
                         data={humanReview}
