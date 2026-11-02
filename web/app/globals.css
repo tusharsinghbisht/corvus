@@ -1,5 +1,6 @@
 @import "../components/workspace.css";
 @import "../components/investigations.css";
+@import "../components/reviews.css";
 
 :root {
   color-scheme: dark;

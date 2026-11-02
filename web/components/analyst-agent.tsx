@@ -6,9 +6,20 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, time } from "@/lib/api";
 import { statusLabels } from "@/lib/investigations";
 import type { AnalystSettings } from "@/lib/policies";
+import type { ReviewStatus } from "@/lib/reviews";
+import { ReviewBadge } from "./review-badge";
 
 type Overview = AnalystSettings & {
-  stats: { total: number; active: number; reports: number; attention: number };
+  stats: {
+    total: number;
+    active: number;
+    reports: number;
+    attention: number;
+    pending_review: number;
+    accepted_assessments: number;
+    rejected_assessments: number;
+    follow_up: number;
+  };
   attempts: {
     id: string;
     alert_id: string;
@@ -18,20 +29,27 @@ type Overview = AnalystSettings & {
     status: string;
     created_at: string;
     disposition: string | null;
+    review_status: ReviewStatus | null;
+    review_stale: boolean;
   }[];
 };
 export function AnalystAgent() {
   const router = useRouter();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState("");
+  const [reviewFilter, setReviewFilter] = useState("all");
   useEffect(() => {
+    setData(null);
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try {
-        const result = await api<Overview>("/agents/analyst", {
-          signal: controller.signal,
-        });
+        const result = await api<Overview>(
+          `/agents/analyst?review=${reviewFilter}`,
+          {
+            signal: controller.signal,
+          },
+        );
         if (!controller.signal.aborted) {
           setData(result);
           setError("");
@@ -50,7 +68,7 @@ export function AnalystAgent() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [router]);
+  }, [router, reviewFilter]);
   return (
     <>
       <div className="page-heading">
@@ -83,9 +101,12 @@ export function AnalystAgent() {
           <small>Not incident count</small>
         </div>
         <div>
-          <span>Reports ready for review</span>
-          <strong>{data?.stats.reports ?? "—"}</strong>
-          <small>Passed integrity checks, not human acceptance</small>
+          <span>Reports awaiting human review</span>
+          <strong>{data?.stats.pending_review ?? "—"}</strong>
+          <small>
+            {data?.stats.reports ?? "—"} total reports · counted per attempt,
+            not incident
+          </small>
         </div>
         <div>
           <span>Needs attention</span>
@@ -106,11 +127,33 @@ export function AnalystAgent() {
           <div>
             <h2>Recent investigations</h2>
             <p>
-              Latest 50 attempts. Open an alert for its report, evidence map,
-              and complete history.
+              Latest 50 matching attempts. Links open the exact report, evidence
+              map, and review history.
             </p>
           </div>
           <Link href="/soc">Open alert queue →</Link>
+        </div>
+        <div className="toolbar review-toolbar">
+          <label>
+            Human assessment review
+            <select
+              aria-label="Human review filter"
+              value={reviewFilter}
+              onChange={(event) => setReviewFilter(event.target.value)}
+            >
+              <option value="all">All attempts</option>
+              <option value="pending">Awaiting human review</option>
+              <option value="follow_up">Follow-up needed</option>
+              <option value="accepted">Assessment accepted</option>
+              <option value="rejected">Assessment rejected</option>
+            </select>
+          </label>
+          <p className="muted">
+            {data?.stats.accepted_assessments ?? 0} accepted ·{" "}
+            {data?.stats.rejected_assessments ?? 0} rejected ·{" "}
+            {data?.stats.follow_up ?? 0} follow-up. Recorded human decisions,
+            not incident outcomes.
+          </p>
         </div>
         <div className="table-wrap">
           <table>
@@ -120,6 +163,7 @@ export function AnalystAgent() {
                 <th>Mode</th>
                 <th>Attempt</th>
                 <th>Outcome</th>
+                <th>Human review</th>
                 <th>Requested</th>
               </tr>
             </thead>
@@ -129,7 +173,7 @@ export function AnalystAgent() {
                   <td>
                     <Link
                       className="alert-title"
-                      href={`/soc/alerts/${a.alert_id}`}
+                      href={`/soc/alerts/${a.alert_id}?attempt=${a.id}`}
                     >
                       {a.title}
                     </Link>
@@ -144,6 +188,16 @@ export function AnalystAgent() {
                       </div>
                     )}
                   </td>
+                  <td>
+                    {a.review_status ? (
+                      <ReviewBadge
+                        status={a.review_status}
+                        stale={a.review_stale}
+                      />
+                    ) : (
+                      <span className="muted">No reviewable report</span>
+                    )}
+                  </td>
                   <td className="time-cell">{time(a.created_at)}</td>
                 </tr>
               ))}
@@ -152,8 +206,16 @@ export function AnalystAgent() {
         </div>
         {data?.attempts.length === 0 && (
           <div className="table-empty">
-            <h3>No investigations yet</h3>
-            <p>Open an alert and choose Investigate with Analyst to begin.</p>
+            <h3>
+              {reviewFilter === "all"
+                ? "No investigations yet"
+                : "No matching reviews"}
+            </h3>
+            <p>
+              {reviewFilter === "all"
+                ? "Open an alert and choose Investigate with Analyst to begin."
+                : "Choose another review filter or return to all attempts."}
+            </p>
           </div>
         )}
         {!data && (

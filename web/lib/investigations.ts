@@ -1,3 +1,5 @@
+import type { ReviewPage } from "./reviews";
+
 export type Citation =
   | { backend: string; index: string; id: string }
   | { collection_id: string; path: string };
@@ -71,6 +73,7 @@ export type Attempt = {
   error_code: string | null;
 };
 export type AttemptDetail = Attempt & {
+  human_review?: ReviewPage | null;
   evidence: Evidence | null;
   analysis_evidence: Evidence | null;
   mode: "manual" | "automatic";
@@ -106,7 +109,7 @@ export const statusLabels: Record<string, string> = {
   awaiting_approval: "Awaiting your approval",
   queued: "Analyst request queued",
   requesting: "Analyst request in progress",
-  validated: "Report passed integrity checks · human review required",
+  validated: "Report passed integrity checks",
   rejected: "Candidate rejected by validation",
   failed: "Attempt failed",
   unknown: "Request outcome unknown · no automatic retry",

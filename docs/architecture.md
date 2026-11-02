@@ -31,9 +31,9 @@ Browser → Caddy HTTPS → Next.js
 ```
 
 - **Next.js:** public landing page and authenticated SOC interface. No credentials or model calls in browser code.
-- **Python API:** authenticated connection onboarding, alert queries, source inspection, sessions, and manual investigation/approval routes. No model credentials or calls.
+- **Python API:** authenticated connection onboarding, alert queries, source inspection, sessions, manual investigation/approval routes, and evidence-bound human assessment review. No model credentials or calls.
 - **Worker:** checkpointed alert ingestion plus an independent manual-triage consumer using the existing collector and Analyst. Only per-attempt manual consent or a separately consented, bounded automatic policy can authorize model calls.
-- **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, audit events, investigation jobs/attempts, saved evidence, candidate reports, and provenance. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
+- **PostgreSQL:** normalized alerts plus original JSONB, connections, sessions, audit events, investigation jobs/attempts, saved evidence, candidate reports, provenance, and append-only human assessment reviews. Wazuh retains high-volume telemetry; Corvus does not mirror its archives.
 - **Docker Compose:** separate application services and persistent database volume. Existing Caddy provides HTTPS at `corvus.0xbenzo.dev`. No public database/indexer ports, Docker socket, or root application access.
 
 The application covers connection → ingestion → alert inspection → bounded collection → explicit approval → one Analyst request → preserved advisory report. See [manual triage](manual-triage.md) for durable state/recovery and the [deployment guide](deployment.md) for Docker operations and current limits.
@@ -54,7 +54,7 @@ Alert intake → Correlation ↔ Analyst → Policy / human approval → Contain
 | --- | --- | --- |
 | Alert intake | Preserve detections and native identity; make alerts available for investigation | Live |
 | Correlation agent | Propose related alert/evidence sets; respond to scoped Analyst requests | Planned |
-| Analyst agent | Own the investigation, request scoped enrichment, and produce an evidence-linked assessment | Single-pass core and manual queue triage available; orchestration pending |
+| Analyst agent | Own the investigation, request scoped enrichment, and produce an evidence-linked assessment | Single-pass LangGraph workflow, manual/policy-gated triage, and human assessment review; multi-agent handoffs planned |
 | Intel agent | Return sourced, time-aware indicator/behavior context to the Analyst | Planned |
 | Policy / approval | Validate the exact action and target; require authorization outside the models | Planned; this is code/human authority, not another agent |
 | Containment agent | Execute only an approved, scoped plan with separate response credentials | Planned |
@@ -78,7 +78,7 @@ Timestamp polling has a bounded late-arrival horizon; it cannot guarantee captur
 
 ## Analyst modes
 
-The manual Analyst pipeline is deterministic: queue → bounded evidence collection → inspect/approve saved input → one model request → validation → preserved candidate requiring human review. A recorded human-review lifecycle is not implemented.
+The manual Analyst pipeline is deterministic: queue → bounded evidence collection → inspect/approve saved input → one model request → validation → preserved candidate requiring human review. [Human assessment review](report-review.md) records acceptance, rejection, or follow-up against the exact report/evidence. It is not incident resolution or response authorization.
 
 - **Manual is the default.** Each request explicitly acknowledges external evidence processing.
 - **Auto is opt-in per connection.** Separate external-processing consent, medium+/high+/critical eligibility, rolling connection/global budgets, and a fresh activation boundary are required. Only new 5–15-minute-old alerts qualify; historical backlogs and previously investigated alerts are excluded. See [Analyst policies and context](analyst-policies.md).

@@ -78,7 +78,7 @@ Validation checks schema, collection/digest binding, reference existence, findin
 - A definitive disposition needs an inference linked from the summary.
 - Containment/remediation review recommendations require a malicious disposition. Uncertainty alone is insufficient.
 
-These are report-integrity gates, **not action authorization**. A digest is not a signature or proof of source authenticity. A correct reference does not prove a claim follows from the evidence. All reports require human review.
+These are report-integrity gates, **not action authorization**. A digest is not a signature or proof of source authenticity. A correct reference does not prove a claim follows from the evidence. All reports require human review. The application records [assessment acceptance, rejection, and follow-up](report-review.md) without changing the original model artifact or authorizing response.
 
 ## Regression checks and known limits
 
@@ -91,6 +91,6 @@ corvus evaluate --suite evaluations/suite.json --reports artifacts/analyses/my-r
 
 The historical three-case model batch matched all disposition labels but passed only **2/3 automated cases**: an inconclusive report recommended unsupported containment. The current gate rejects that recommendation. Review also found PID/GUID confusion, overconfident timing, and unsupported destination reputation claims despite valid references. Automated passes are not semantic approval or independent human acceptance.
 
-Historical model testing used synthetic input only; no live Windows bundle was uploaded. Failed candidates and original inputs remain in private artifacts. Prompt changes have not been shown to eliminate these reasoning failures.
+The historical offline regression batch used synthetic input. Later operator-approved live investigations are operational runs, not additions to that regression score. Failed candidates and original inputs remain private. Prompt changes have not been shown to eliminate these reasoning failures.
 
-Current limits: one model call per approved attempt, no investigative tool loop, no response executor, no automatic redaction, and no recorded human-review lifecycle. Durable jobs are available in the live application, not the CLI. JSON inputs cap at 16 MiB; evidence catalogs cap at 5,000 documents plus the alert. Duplicate JSON keys and non-standard numeric values are rejected. Provider-specific request/token limits belong to the selected adapter.
+Current limits: one model call per approved attempt, no investigative tool loop, no response executor, no automatic redaction, and no incident-resolution lifecycle. Human assessment review is recorded separately from model output and containment authority. Durable jobs are available in the live application, not the CLI. JSON inputs cap at 16 MiB; evidence catalogs cap at 5,000 documents plus the alert. Duplicate JSON keys and non-standard numeric values are rejected. Provider-specific request/token limits belong to the selected adapter.

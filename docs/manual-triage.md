@@ -1,6 +1,6 @@
 # Manual Analyst investigations
 
-Manual triage is a read-only workflow on an ingested alert. It does not close an incident, record human acceptance, or authorize containment. Ingestion alone never authorizes a model call. Automatic processing requires a separate [connection policy](analyst-policies.md).
+Manual triage is a read-only workflow on an ingested alert. Reports can receive an explicit [human assessment review](report-review.md). This does not close an incident or authorize containment. Ingestion alone never authorizes a model call. Automatic processing requires a separate [connection policy](analyst-policies.md).
 
 ## Operator workflow
 

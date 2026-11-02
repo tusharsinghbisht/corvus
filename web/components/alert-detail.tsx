@@ -16,7 +16,13 @@ function value(item: unknown) {
       : String(item);
 }
 
-export function AlertDetail({ id }: { id: string }) {
+export function AlertDetail({
+  id,
+  attemptId,
+}: {
+  id: string;
+  attemptId?: string;
+}) {
   const router = useRouter();
   const [alert, setAlert] = useState<Detail | null>(null);
   const [error, setError] = useState("");
@@ -75,7 +81,12 @@ export function AlertDetail({ id }: { id: string }) {
           </div>
         </div>
       </div>
-      <Investigation key={id} alertId={id} connectionId={alert.connection_id} />
+      <Investigation
+        key={`${id}-${attemptId ?? ""}`}
+        alertId={id}
+        connectionId={alert.connection_id}
+        requestedAttemptId={attemptId}
+      />
       <div className="detail-grid">
         <section className="panel">
           <div className="panel-heading">

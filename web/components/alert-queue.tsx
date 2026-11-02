@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { api, ApiError, levelName, time } from "@/lib/api";
 import type { AlertPage, ConnectionData } from "@/lib/types";
+import { ReviewBadge } from "./review-badge";
+import { statusLabels } from "@/lib/investigations";
 
 export function AlertQueue() {
   const router = useRouter();
@@ -229,6 +231,7 @@ export function AlertQueue() {
                     <th>Detection</th>
                     <th>Agent</th>
                     <th>Severity</th>
+                    <th>Investigation</th>
                     <th>Indexed time</th>
                     <th />
                   </tr>
@@ -263,6 +266,33 @@ export function AlertQueue() {
                           <small>{alert.rule_level}</small>
                         </span>
                       </td>
+                      <td className="investigation-cell">
+                        {alert.investigation?.report_attempt_id ? (
+                          <>
+                            <ReviewBadge
+                              status={
+                                alert.investigation.review_status ?? "pending"
+                              }
+                              stale={alert.investigation.review_stale}
+                            />
+                            {alert.investigation.attempt_status !==
+                              "validated" && (
+                              <div className="table-sub">
+                                Latest attempt:{" "}
+                                {statusLabels[
+                                  alert.investigation.attempt_status ?? ""
+                                ] ?? "Unknown"}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="muted">
+                            {statusLabels[
+                              alert.investigation?.attempt_status ?? ""
+                            ] ?? "Not investigated"}
+                          </span>
+                        )}
+                      </td>
                       <td className="time-cell">{time(alert.timestamp)}</td>
                       <td>
                         <Link
@@ -276,14 +306,14 @@ export function AlertQueue() {
                   ))}
                   {!data && (
                     <tr>
-                      <td colSpan={5} className="table-empty">
+                      <td colSpan={6} className="table-empty">
                         {error ? "Alerts unavailable" : "Loading alerts…"}
                       </td>
                     </tr>
                   )}
                   {data && !data.alerts.length && (
                     <tr>
-                      <td colSpan={5} className="table-empty">
+                      <td colSpan={6} className="table-empty">
                         <h3>No matching alerts.</h3>
                         <p>
                           Try a wider time window or check your connection’s

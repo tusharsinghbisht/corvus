@@ -65,7 +65,7 @@ Worker shutdown has a 210-second grace period for in-flight requests. A forced s
 
 A single operator account is bootstrapped with Argon2. Sessions are hashed in PostgreSQL, expire after 12 hours, and use Secure/HttpOnly/SameSite cookies over HTTPS. Mutation requests require an exact Origin. Ten failed logins in 15 minutes trigger a global pilot throttle. Connection destinations are operator-allowlisted; arbitrary URL/CA uploads are not exposed. Validation errors never echo passwords.
 
-This is a single-operator pilot: no SSO/MFA, granular roles, password-rotation UI, recorded human-review workflow or response executor. External processing requires per-attempt manual approval or independently recorded connection-level automatic consent. Source documents may contain personal data/secrets. Alert retention and scheduled encrypted backups are not yet configured; do not treat the persistent volume alone as a backup. Caddy's CSP allows inline scripts/styles for Next.js hydration; no untrusted HTML is rendered.
+This is a single-operator pilot: no SSO/MFA, granular roles, password-rotation UI, incident-resolution lifecycle, reviewer-role separation, or response executor. Human assessment review is recorded against an exact report and evidence snapshot, not treated as incident closure. External processing requires per-attempt manual approval or independently recorded connection-level automatic consent. Source documents may contain personal data/secrets. Alert retention and scheduled encrypted backups are not yet configured; do not treat the persistent volume alone as a backup. Caddy's CSP allows inline scripts/styles for Next.js hydration; no untrusted HTML is rendered.
 
 ## Updates and checks
 
@@ -78,9 +78,9 @@ docker compose --env-file ~/.config/corvus/app/deploy.env up -d --wait
 docker compose --env-file ~/.config/corvus/app/deploy.env ps
 ```
 
-Do not run `down -v`; it deletes the database. Back up PostgreSQL and the configuration/encryption key before schema-changing releases. Initialization applies ordered migrations under a database advisory lock. Schema version 3 adds selected evidence and opt-in Analyst policies; existing connections remain manual and old attempts retain their original evidence/digests. Do not roll back to application code that cannot initialize the upgraded schema. Audit events are in PostgreSQL; container logs intentionally omit source bodies and credentials.
+Do not run `down -v`; it deletes the database. Back up PostgreSQL and the configuration/encryption key before schema-changing releases. Initialization applies ordered migrations under a database advisory lock. Schema version 4 adds human assessment reviews. Existing reports start unreviewed; evidence, model output, and processing policies are unchanged. Previous schema version 3 introduced selected evidence and opt-in Analyst policies. Do not roll back to application code that cannot initialize the upgraded schema. Audit events are in PostgreSQL; container logs intentionally omit source bodies and credentials.
 
-## Local checks
+## Checks on the development VM
 
 ```bash
 .venv/bin/python -m pip install -e '.[server,dev]'

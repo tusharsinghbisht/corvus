@@ -4,9 +4,9 @@ An alert investigation service. Corvus connects security detections to supportin
 
 ## Status
 
-**Working:** authenticated Wazuh onboarding, checkpointed alert ingestion, filtering/pagination, sync health, and source inspection. Manual investigations add bounded evidence collection, explicit per-bundle external-processing approval, one Analyst request, validated advisory reports, citations, and durable attempt history. See [manual triage](docs/manual-triage.md) and [deployment](docs/deployment.md).
+**Working:** authenticated Wazuh onboarding, checkpointed alert ingestion, filtering/pagination, sync health, and source inspection. Manual investigations add bounded evidence collection, explicit per-bundle external-processing approval, one Analyst request, validated advisory reports, citations, durable attempt history, and evidence-bound human review with rationale and preserved decisions. See [manual triage](docs/manual-triage.md) and [deployment](docs/deployment.md).
 
-**Manual by default:** ingestion alone never queues model requests. Automatic Analyst triage is opt-in per connection, with separate external-processing consent, severity eligibility, and rolling request budgets. It excludes historical backlogs and never retries failed calls. Human-review lifecycle and response execution are not implemented.
+**Manual by default:** ingestion alone never queues model requests. Automatic Analyst triage is opt-in per connection, with separate external-processing consent, severity eligibility, and rolling request budgets. It excludes historical backlogs and never retries failed calls. Assessment review is recorded separately; incident resolution and response execution are not implemented.
 
 **Target architecture:** correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph runs the single-pass Analyst workflow; multi-agent handoffs and these additional roles are not active yet. See [architecture](docs/architecture.md).
 
@@ -14,7 +14,7 @@ The earlier saved-artifact dashboard has been retired. Synthetic fixtures remain
 
 ## Development
 
-Requires Python 3.11+.
+Requires Python 3.11+. Install dependencies and run checks on the authorized development VM after syncing committed source; the local checkout is for source editing. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 python3 -m venv .venv
@@ -83,6 +83,7 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 - [Collector setup and CLI](docs/read-only-cli.md)
 - [Manual investigations and approval](docs/manual-triage.md)
 - [Analyst configuration and report validation](docs/investigation-reports.md)
+- [Human assessment review](docs/report-review.md)
 - [Wazuh lab operations](docs/lab-setup.md)
 - [Archive collection and retention](docs/telemetry-archives.md)
 - [Windows simulation plan](docs/windows-simulation-plan.md)

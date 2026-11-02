@@ -122,9 +122,9 @@ test("Analyst report, interactive evidence map, approval, and preserved failure 
   await expect(
     investigation.getByRole("heading", { name: "Findings", exact: true }),
   ).toBeVisible();
-  await expect(investigation.getByRole("status")).toContainText(
-    "human review required",
-  );
+  await expect(
+    investigation.locator(".report-label .review-badge"),
+  ).toContainText("Human review required");
   await expect(investigation.locator("pre:visible")).toHaveCount(0);
   await expect(investigation.locator(".investigation-report")).toContainText(
     "<img src=x",
@@ -215,6 +215,154 @@ test("Analyst report, interactive evidence map, approval, and preserved failure 
   await page.screenshot({
     path: "../artifacts/browser-tests/analyst-evidence-map-mobile.png",
   });
+});
+
+test("human review is evidence-bound, survives reload, handles stale tabs, and updates queues", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  const started: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      (/\/investigations$/.test(new URL(request.url()).pathname) ||
+        request.url().endsWith("/approve"))
+    )
+      started.push(request.url());
+  });
+  await page.getByRole("button", { name: "Agents", exact: true }).click();
+  await page.getByRole("link", { name: "Analyst Active" }).click();
+  await page.getByLabel("Human review filter").selectOption("all");
+  await expect(page.locator(".alert-title").first()).toBeVisible();
+  // The newest attempt failed. Its deep link must not silently open an older report.
+  await page.locator(".alert-title").first().click();
+  await expect(page.locator(".attempt-status")).toContainText("Attempt failed");
+  await expect(
+    page.getByRole("heading", { name: "Findings", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "Analyst Active" }).click();
+  await page.getByLabel("Human review filter").selectOption("pending");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await page.locator(".alert-title").click();
+  await expect(page).toHaveURL(/\?attempt=/);
+  const review = page.getByRole("region", { name: "Human assessment review" });
+  await expect(
+    review.getByRole("heading", { name: "Human review", exact: true }),
+  ).toBeVisible();
+  const peer = await context.newPage();
+  await peer.goto(page.url());
+  const peerReview = peer.getByRole("region", {
+    name: "Human assessment review",
+  });
+  await expect(
+    peerReview.locator(".review-heading .review-badge"),
+  ).toContainText("Human review required");
+  await review
+    .getByRole("radio", { name: "Accept assessment", exact: true })
+    .check();
+  const note =
+    'Checked the source facts and alternatives. <img src=x onerror="window.corvusReviewInjection=true">';
+  await review.getByLabel("Review rationale", { exact: true }).fill(note);
+  const save = review.getByRole("button", {
+    name: "Save human review",
+    exact: true,
+  });
+  await expect(save).toBeDisabled();
+  await review.getByRole("checkbox").check();
+  await save.click();
+  await expect(review.getByRole("status")).toContainText(
+    "Human review recorded",
+  );
+  await expect(review.locator(".review-heading .review-badge")).toContainText(
+    "Assessment accepted",
+  );
+  await expect(page.locator('img[src="x"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as Record<string, unknown>).corvusReviewInjection,
+    ),
+  ).toBeUndefined();
+  // The other tab still targets review sequence zero. It must not overwrite acceptance.
+  await peerReview
+    .getByRole("radio", { name: "Needs follow-up", exact: true })
+    .check();
+  await peerReview
+    .getByLabel("Review rationale", { exact: true })
+    .fill("Need a fresh source check before relying on this assessment.");
+  await peerReview
+    .getByRole("button", { name: "Save human review", exact: true })
+    .click();
+  await expect(peerReview.getByRole("alert")).toContainText(
+    "Review history changed",
+  );
+  await peerReview
+    .getByRole("button", { name: "Reload report and review history" })
+    .click();
+  await expect(
+    peerReview.locator(".review-heading .review-badge"),
+  ).toContainText("Assessment accepted");
+  await peerReview
+    .getByRole("button", { name: "Save human review", exact: true })
+    .click();
+  await expect(
+    peerReview.locator(".review-heading .review-badge"),
+  ).toContainText("Follow-up needed");
+  await peer.close();
+  await page.reload();
+  await expect(review.locator(".review-heading .review-badge")).toContainText(
+    "Follow-up needed",
+  );
+  await review
+    .getByText("Review history · 2 decisions", { exact: true })
+    .click();
+  await expect(review.locator(".review-history .review-entry")).toHaveCount(2);
+  await expect(review.locator(".review-history")).toContainText(note);
+  await review
+    .getByRole("radio", { name: "Reject assessment", exact: true })
+    .check();
+  await review
+    .getByLabel("Review rationale", { exact: true })
+    .fill("The cited source does not establish the claimed conclusion.");
+  await save.click();
+  await expect(review.locator(".review-heading .review-badge")).toContainText(
+    "Assessment rejected",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Findings", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(review.locator(".review-heading .review-badge")).toContainText(
+    "Assessment rejected",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await review.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "../artifacts/browser-tests/human-review-mobile.png",
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole("link", { name: "Alerts", exact: true }).click();
+  await page.getByRole("searchbox", { name: "Search alerts" }).fill("<img");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await expect(page.locator(".investigation-cell")).toContainText(
+    "Assessment rejected",
+  );
+  await page.getByRole("button", { name: "Agents", exact: true }).click();
+  await page.getByRole("link", { name: "Analyst Active" }).click();
+  await page.getByLabel("Human review filter").selectOption("rejected");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await expect(page.locator(".table-wrap")).toContainText(
+    "Assessment rejected",
+  );
+  await page.getByLabel("Human review filter").selectOption("pending");
+  await expect(page.locator(".alert-title")).toHaveCount(0);
+  expect(started).toEqual([]);
 });
 
 test("Settings policies require explicit consent and the Analyst navigation is operational", async ({

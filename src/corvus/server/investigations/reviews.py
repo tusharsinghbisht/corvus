@@ -11,7 +11,7 @@ from ...reporting.validation import VALIDATION_VERSION, validate_report
 from ..database import audit
 
 PAGE_SIZE = 20
-FIELDS = "r.id,r.sequence,r.created_at,r.decision,r.note,r.evidence_checked,r.analysis_id,r.evidence_digest,r.report_digest,r.generation_validator_version,r.revalidation,u.username AS reviewer"
+FIELDS = "r.id,r.sequence,r.created_at,r.reviewer_id,r.decision,r.note,r.evidence_checked,r.analysis_id,r.evidence_digest,r.report_digest,r.generation_validator_version,r.revalidation,u.username AS reviewer"
 
 
 def report_digest(result):

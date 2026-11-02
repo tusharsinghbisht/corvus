@@ -1,3 +1,5 @@
+import type { ReviewStatus } from "./reviews";
+
 export type Alert = {
   id: string;
   connection_id: string;
@@ -10,6 +12,12 @@ export type Alert = {
   title: string;
   native_index: string;
   native_id: string;
+  investigation?: {
+    attempt_status: string | null;
+    report_attempt_id: string | null;
+    review_status: ReviewStatus | null;
+    review_stale: boolean;
+  } | null;
 };
 
 export type AlertDetail = Alert & {

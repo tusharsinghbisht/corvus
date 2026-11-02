@@ -11,17 +11,21 @@ import { InvestigationFailure } from "./investigation-failure";
 import { SelectedEvidence } from "./selected-evidence";
 import { AlertAnalystMode } from "./analyst-policy";
 import { EvidenceFacts } from "./evidence-facts";
+import { ReportReviewPanel } from "./report-review";
+import { ReviewBadge } from "./review-badge";
 
 export function Investigation({
   alertId,
   connectionId,
+  requestedAttemptId,
 }: {
   alertId: string;
   connectionId: string;
+  requestedAttemptId?: string;
 }) {
   const router = useRouter();
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(requestedAttemptId ?? "");
   const [detail, setDetail] = useState<AttemptDetail | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [approved, setApproved] = useState(false);
@@ -44,7 +48,17 @@ export function Investigation({
         const data = await api<{ attempts: Attempt[] }>(base, {
           signal: controller.signal,
         });
-        if (!controller.signal.aborted) setAttempts(data.attempts);
+        if (!controller.signal.aborted) {
+          setAttempts(data.attempts);
+          // Pin the viewed assessment while someone is reviewing it.
+          setSelectedId(
+            (previous) =>
+              previous ||
+              data.attempts.find((a) => a.status === "validated")?.id ||
+              data.attempts[0]?.id ||
+              "",
+          );
+        }
       } catch (err) {
         if (controller.signal.aborted) return;
         if (err instanceof ApiError && err.status === 401)
@@ -83,6 +97,13 @@ export function Investigation({
       });
     return () => controller.abort();
   }, [base, currentId, selectedStatus, refresh, router]);
+  function selectAttempt(identifier: string, pinInUrl = true) {
+    setSelectedId(identifier);
+    const url = new URL(window.location.href);
+    if (pinInUrl) url.searchParams.set("attempt", identifier);
+    else url.searchParams.delete("attempt");
+    window.history.replaceState(null, "", url);
+  }
   async function act(action: "collect" | "approve" | "cancel") {
     if (busy) return;
     setBusy(true);
@@ -90,7 +111,7 @@ export function Investigation({
     try {
       if (action === "collect") {
         const data = await api<{ id: string }>(base, { method: "POST" });
-        setSelectedId(data.id);
+        selectAttempt(data.id, false);
       } else
         await api(`${base}/${currentId}/${action}`, {
           method: "POST",
@@ -127,6 +148,10 @@ export function Investigation({
     visible?.result?.status === "validated" && visible.result.validation.valid
       ? (visible.result.report as Report)
       : null;
+  const humanReview = visible?.human_review;
+  const reviewStatus = humanReview?.latest_matches_report
+    ? (humanReview.latest?.decision ?? "pending")
+    : "pending";
   return (
     <section
       className="panel investigation-panel"
@@ -160,6 +185,7 @@ export function Investigation({
           <span>02 · Consent / policy</span>
           <span>03 · Analyst</span>
           <span>04 · Report & evidence</span>
+          <span>05 · Human review</span>
         </div>
         {error && (
           <div role="alert" className="notice error">
@@ -181,7 +207,7 @@ export function Investigation({
             {statusLabels[activeAttempt.status]}.{" "}
             <button
               className="button secondary"
-              onClick={() => setSelectedId(activeAttempt.id)}
+              onClick={() => selectAttempt(activeAttempt.id)}
             >
               Open active attempt
             </button>
@@ -218,7 +244,7 @@ export function Investigation({
                 {latestReport && currentId !== latestReport.id && (
                   <button
                     className="button secondary"
-                    onClick={() => setSelectedId(latestReport.id)}
+                    onClick={() => selectAttempt(latestReport.id, false)}
                   >
                     Show latest report
                   </button>
@@ -235,16 +261,51 @@ export function Investigation({
                       <span className="plain-tag">
                         Report passed integrity checks
                       </span>
-                      <span>
-                        Generated {time(visible.completed_at)} · Human review
-                        required
-                      </span>
+                      <span>Generated {time(visible.completed_at)}</span>
+                      <ReviewBadge
+                        status={reviewStatus}
+                        stale={
+                          !!humanReview?.latest &&
+                          !humanReview.latest_matches_report
+                        }
+                      />
+                      {humanReview?.target && (
+                        <button
+                          className="review-jump"
+                          onClick={() =>
+                            document
+                              .getElementById(`human-review-${visible.id}`)
+                              ?.scrollIntoView({
+                                block: "start",
+                                behavior: "smooth",
+                              })
+                          }
+                        >
+                          Review assessment ↓
+                        </button>
+                      )}
                     </div>
                     <InvestigationReport
                       key={currentId}
                       report={report}
                       evidence={evidence}
                     />
+                    {humanReview && (
+                      <ReportReviewPanel
+                        key={visible.id}
+                        alertId={alertId}
+                        attemptId={visible.id}
+                        data={humanReview}
+                        onSaved={(page) =>
+                          setDetail((previous) =>
+                            previous?.id === visible.id
+                              ? { ...previous, human_review: page }
+                              : previous,
+                          )
+                        }
+                        onReload={() => setRefresh((n) => n + 1)}
+                      />
+                    )}
                   </>
                 )}
                 {visible.status === "requesting" && (
@@ -320,7 +381,7 @@ export function Investigation({
                       ...selected,
                       provenance: visible.provenance,
                       response_usage: visible.model_reply?.usage,
-                      human_review_required: true,
+                      generation_human_review_required: true,
                       response_executed: false,
                     }}
                   />
@@ -355,7 +416,7 @@ export function Investigation({
                 aria-label="Attempt history"
                 value={currentId}
                 onChange={(e) => {
-                  setSelectedId(e.target.value);
+                  selectAttempt(e.target.value);
                   setApproved(false);
                 }}
               >

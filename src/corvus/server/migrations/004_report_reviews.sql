@@ -3,7 +3,7 @@ CREATE TABLE report_reviews (
     attempt_id uuid NOT NULL REFERENCES triage_attempts(id),
     sequence integer NOT NULL CHECK (sequence > 0),
     reviewer_id uuid NOT NULL REFERENCES users(id),
-    created_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     decision text NOT NULL CHECK (decision IN ('accepted','rejected','follow_up')),
     note text NOT NULL CHECK (length(btrim(note)) BETWEEN 10 AND 2000),
     evidence_checked boolean NOT NULL,

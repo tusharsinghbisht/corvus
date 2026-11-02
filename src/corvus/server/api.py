@@ -277,7 +277,7 @@ def create_app(settings):
     def report_reviews(
         identifier: UUID,
         attempt_id: UUID,
-        before: int | None = Query(default=None, ge=1),
+        before: int | None = Query(default=None, ge=1, le=2147483647),
         current=Depends(user),
     ):
         with connect(settings) as db:
