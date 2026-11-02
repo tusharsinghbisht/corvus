@@ -15,7 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from ..errors import BackendError, ConfigError
 from . import alerts, auth, connections
 from .database import audit, connect, initialize
-from .investigations import policy
+from .investigations import overview, policy, reviews
 from .investigations import service as triage
 from .settings import Settings
 
@@ -56,6 +56,17 @@ class AnalystPolicyInput(BaseModel):
 class AnalystBudgetInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     daily_limit: int = Field(ge=1, le=200, strict=True)
+
+
+class ReportReviewInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision: Literal["accepted", "rejected", "follow_up"]
+    note: str = Field(min_length=10, max_length=2000)
+    evidence_checked: StrictBool
+    analysis_id: UUID
+    evidence_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    report_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expected_sequence: int = Field(ge=0, le=2147483646, strict=True)
 
 
 def create_app(settings):
@@ -262,6 +273,23 @@ def create_app(settings):
             triage.cancel(db, identifier, attempt_id, current["id"])
         return {"ok": True}
 
+    @app.get("/api/alerts/{identifier}/investigations/{attempt_id}/reviews")
+    def report_reviews(
+        identifier: UUID,
+        attempt_id: UUID,
+        before: int | None = Query(default=None, ge=1),
+        current=Depends(user),
+    ):
+        with connect(settings) as db:
+            return reviews.page(db, reviews.load_attempt(db, identifier, attempt_id), before=before)
+
+    @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/reviews", status_code=201)
+    def review_report(
+        identifier: UUID, attempt_id: UUID, body: ReportReviewInput, current=Depends(user)
+    ):
+        with connect(settings) as db:
+            return reviews.create(db, identifier, attempt_id, body, current["id"])
+
     @app.get("/api/settings/analyst")
     def analyst_settings(current=Depends(user)):
         with connect(settings) as db:
@@ -284,18 +312,12 @@ def create_app(settings):
             return policy.listing(db)
 
     @app.get("/api/agents/analyst")
-    def analyst_overview(current=Depends(user)):
+    def analyst_overview(
+        review: Literal["all", "pending", "accepted", "rejected", "follow_up"] = "all",
+        current=Depends(user),
+    ):
         with connect(settings) as db:
-            stats = db.execute("""SELECT count(*) AS total,
-                count(*) FILTER(WHERE status IN ('pending_collection','collecting','awaiting_approval','queued','requesting')) AS active,
-                count(*) FILTER(WHERE status='validated') AS reports,
-                count(*) FILTER(WHERE status IN ('failed','unknown','rejected')) AS attention
-                FROM triage_attempts""").fetchone()
-            attempts = db.execute("""SELECT a.id,a.number,a.status,a.mode,a.created_at,a.completed_at,a.error_code,
-                j.alert_id,e.title,e.rule_level,e.agent_name,a.result->'report'->>'disposition' AS disposition
-                FROM triage_attempts a JOIN triage_jobs j ON j.id=a.job_id JOIN alerts e ON e.id=j.alert_id
-                ORDER BY a.created_at DESC,a.id DESC LIMIT 50""").fetchall()
-            return {"stats": stats, "attempts": attempts, **policy.listing(db)}
+            return {**overview.analyst(db, review), **policy.listing(db)}
 
     return app
 

@@ -29,7 +29,7 @@ from corvus.storage import load_json
 ROOT = Path(__file__).resolve().parents[1] / "evaluations"
 
 
-class TriageTests(ServerDatabaseCase):
+class TriageDatabaseCase(ServerDatabaseCase):
     def setUp(self):
         super().setUp()
         self.connection_row = self.connection()
@@ -74,6 +74,8 @@ class TriageTests(ServerDatabaseCase):
                 self.user_id,
             )
 
+
+class TriageTests(TriageDatabaseCase):
     def test_full_manual_flow_preserves_exact_evidence_candidate_and_provenance(self):
         identifier = self.request()
         self.assertEqual(self.read(identifier)["status"], "pending_collection")
@@ -392,7 +394,7 @@ class TriageTests(ServerDatabaseCase):
             initialize(config)
             with connect(config) as db:
                 self.assertEqual(
-                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 3
+                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 4
                 )
                 self.assertEqual(db.execute("SELECT count(*) AS n FROM alerts").fetchone()["n"], 1)
                 self.assertEqual(

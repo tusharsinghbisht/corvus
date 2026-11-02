@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from ...agents.analyst import prepare_report
 from ...reporting.evidence import EvidenceCatalog
 from ..database import audit
+from . import reviews
 
 ACTIVE = ("pending_collection", "collecting", "awaiting_approval", "queued", "requesting")
 SUMMARY = """id,job_id,number,requested_by,created_at,status,collection_started_at,
@@ -43,6 +44,7 @@ def detail(db, alert_id, attempt_id):
         prepare_report(selected) if selected else None
     )
     row["prepared_input_reconstructed"] = bool(selected and not row["input_snapshot"])
+    row["human_review"] = reviews.page(db, row) if row["status"] == "validated" else None
     return row
 
 

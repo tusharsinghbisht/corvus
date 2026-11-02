@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from ..timeutil import utc
+from .investigations.overview import enrich_alerts
 
 COLUMNS = "a.id,a.connection_id,a.timestamp,a.received_at,a.agent_id,a.agent_name,a.rule_id,a.rule_level,a.title,a.native_index,a.native_id"
 
@@ -54,8 +55,10 @@ def listing(db, *, hours=24, minimum=0, search="", connection=None, before=None)
         f"SELECT {COLUMNS} FROM alerts a WHERE {clause} ORDER BY a.timestamp DESC,a.id DESC LIMIT 51",
         params,
     ).fetchall()
+    page = rows[:50]
+    enrich_alerts(db, page)
     return {
-        "alerts": rows[:50],
+        "alerts": page,
         "next_cursor": cursor(rows[49]) if len(rows) > 50 else None,
         "stats": stats,
     }
