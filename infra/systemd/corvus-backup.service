@@ -1,0 +1,23 @@
+[Unit]
+Description=Corvus encrypted snapshot and isolated restore verification
+Requires=docker.service
+After=docker.service
+ConditionPathExists=/home/ubuntu/.config/corvus/backup-key
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+WorkingDirectory=/opt/corvus/app
+ExecStart=/opt/corvus/app/.venv/bin/python /opt/corvus/app/infra/backup.py create --verify-restore --keep 7
+TimeoutStartSec=900
+SuccessExitStatus=75
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/.config/corvus /run/docker.sock
+Nice=10
+CPUQuota=50%
+MemoryMax=2G
+IOSchedulingClass=idle

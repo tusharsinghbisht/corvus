@@ -11,7 +11,7 @@ from corvus.server.database import connect
 from corvus.server.investigations import reviews
 
 
-class ReviewTests(TriageDatabaseCase):
+class ReviewedReportCase(TriageDatabaseCase):
     def setUp(self):
         super().setUp()
         self.identifier = self.request()
@@ -38,6 +38,8 @@ class ReviewTests(TriageDatabaseCase):
     def post(self, **changes):
         return self.client.post(self.path, json=self.body(**changes), headers=self.headers)
 
+
+class ReviewTests(ReviewedReportCase):
     def test_review_preserves_model_output_and_records_human_identity_and_exact_binding(self):
         original = copy.deepcopy(self.read(self.identifier))
         response = self.post()

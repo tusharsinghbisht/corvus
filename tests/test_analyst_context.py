@@ -5,7 +5,14 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from corvus.agents.analyst import analyze, prepare_report
-from corvus.agents.analyst.context import MAX_BYTES, MAX_EVENTS, encoded, select_context
+from corvus.agents.analyst.context import (
+    MAX_BYTES,
+    MAX_EVENTS,
+    TIMESTAMP_PATTERN,
+    canonicalize_indexed_time,
+    encoded,
+    select_context,
+)
 from corvus.providers import ModelError, ModelReply
 from corvus.reporting.evidence import EvidenceCatalog
 from corvus.storage import load_json
@@ -58,6 +65,24 @@ class AnalystContextTests(unittest.TestCase):
         self.assertLessEqual(
             len(encoded(EvidenceCatalog(select_context(self.bundle)).view)), MAX_BYTES
         )
+
+    def test_indexed_timestamp_formatting_preserves_instant_precision_and_original_source(self):
+        from corvus.timeutil import utc
+        for value in ('2026-11-03T12:34:56.123+0000', '2026-11-03T12:34:56.123456789+0530', '2026-11-03 12:34:56.123-0700', '2026-11-03T12:34:56Z'):
+            with self.subTest(value=value):
+                document = deepcopy(self.bundle['alert'])
+                document['context']['timestamp'] = value
+                document['source']['timestamp'] = value
+                source = deepcopy(document['source'])
+                canonicalize_indexed_time(document)
+                self.assertTrue(TIMESTAMP_PATTERN.fullmatch(document['context']['timestamp']))
+                self.assertEqual(utc(document['context']['timestamp']), utc(value))
+                self.assertEqual(document['source'], source)
+                if '123456789' in value:
+                    self.assertIn('123456789', document['context']['timestamp'])
+        document['context']['timestamp'] = 'not-a-time'
+        self.assertFalse(canonicalize_indexed_time(document))
+        self.assertEqual(document['context']['timestamp'], 'not-a-time')
 
     def test_graph_uses_saved_approved_input_instead_of_regenerating_prompt(self):
         prepared = prepare_report(self.bundle)

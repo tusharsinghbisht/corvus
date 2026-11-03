@@ -29,7 +29,22 @@ def decode_cursor(value):
         raise ValueError("Invalid alert cursor") from exc
 
 
-def listing(db, *, hours=24, minimum=0, search="", connection=None, before=None):
+WORKFLOW_JOIN = """LEFT JOIN triage_jobs j ON j.alert_id=a.id
+    LEFT JOIN LATERAL (SELECT status FROM triage_attempts WHERE job_id=j.id ORDER BY number DESC LIMIT 1) latest ON true
+    LEFT JOIN LATERAL (SELECT id FROM triage_attempts WHERE job_id=j.id AND status='validated' ORDER BY number DESC LIMIT 1) report ON true
+    LEFT JOIN LATERAL (SELECT decision FROM report_reviews WHERE attempt_id=report.id ORDER BY sequence DESC LIMIT 1) review ON true"""
+WORKFLOW_FILTERS = {
+    'all': 'true',
+    'uninvestigated': 'latest.status IS NULL',
+    'active': "latest.status IN ('pending_collection','collecting','awaiting_approval','queued','requesting')",
+    'needs_review': 'report.id IS NOT NULL AND review.decision IS NULL',
+    'follow_up': "review.decision='follow_up'",
+    'reviewed': "review.decision IN ('accepted','rejected')",
+    'attention': "latest.status IN ('failed','unknown','rejected')",
+}
+
+
+def listing(db, *, hours=24, minimum=0, search="", connection=None, before=None, view='all'):
     where = ["a.timestamp>=%s", "a.rule_level>=%s"]
     params = [datetime.now(timezone.utc) - timedelta(hours=hours), minimum]
     if connection:
@@ -40,11 +55,13 @@ def listing(db, *, hours=24, minimum=0, search="", connection=None, before=None)
             "(a.title ILIKE %s OR a.agent_name ILIKE %s OR a.agent_id ILIKE %s OR a.rule_id ILIKE %s)"
         )
         params.extend(["%" + search + "%"] * 4)
+    join = WORKFLOW_JOIN if view != 'all' else ''
+    where.append(WORKFLOW_FILTERS[view])
     clause = " AND ".join(where)
     stats = db.execute(
         f"""
         SELECT count(*) AS total,count(*) FILTER(WHERE rule_level>=12) AS high,
-               count(DISTINCT agent_id) AS agents FROM alerts a WHERE {clause}
+               count(DISTINCT agent_id) AS agents FROM alerts a {join} WHERE {clause}
     """,
         params,
     ).fetchone()
@@ -52,7 +69,7 @@ def listing(db, *, hours=24, minimum=0, search="", connection=None, before=None)
         clause += " AND (a.timestamp,a.id)<(%s,%s)"
         params.extend(decode_cursor(before))
     rows = db.execute(
-        f"SELECT {COLUMNS} FROM alerts a WHERE {clause} ORDER BY a.timestamp DESC,a.id DESC LIMIT 51",
+        f"SELECT {COLUMNS} FROM alerts a {join} WHERE {clause} ORDER BY a.timestamp DESC,a.id DESC LIMIT 51",
         params,
     ).fetchall()
     page = rows[:50]

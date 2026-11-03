@@ -99,7 +99,7 @@ class TriageTests(TriageDatabaseCase):
         self.assertEqual(attempt["model_reply"]["content"], json.dumps(self.report))
         self.assertEqual(attempt["result"]["model"]["served_model"], "test-served")
         self.assertEqual(attempt["provenance"]["requested_model"], "test-requested")
-        self.assertEqual(attempt["provenance"]["prompt_version"], "0.4")
+        self.assertEqual(attempt["provenance"]["prompt_version"], "0.5")
         self.assertTrue(attempt["result"]["human_review_required"])
         self.model.complete.assert_called_once()
         self.collector.assert_called_once()
@@ -394,7 +394,7 @@ class TriageTests(TriageDatabaseCase):
             initialize(config)
             with connect(config) as db:
                 self.assertEqual(
-                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 4
+                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 5
                 )
                 self.assertEqual(db.execute("SELECT count(*) AS n FROM alerts").fetchone()["n"], 1)
                 self.assertEqual(

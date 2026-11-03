@@ -8,6 +8,7 @@ from threading import Event, Thread
 from ..errors import BackendError
 from .database import connect, initialize
 from .ingestion import poll
+from .investigations.worker import configured_model
 from .investigations.worker import run as run_triage
 from .settings import Settings
 
@@ -27,7 +28,13 @@ def main():
             raise RuntimeError("Triage consumer stopped")
         Path("/tmp/corvus-worker-heartbeat").touch()
         try:
+            try:
+                configured_model()  # Configuration loading only; never calls complete().
+                analysis_configured = True
+            except Exception:
+                analysis_configured = False
             with connect(settings) as db:
+                db.execute('UPDATE worker_runtime SET heartbeat_at=now(),analysis_configured=%s WHERE singleton', (analysis_configured,))
                 identifiers = [
                     row["id"]
                     for row in db.execute(

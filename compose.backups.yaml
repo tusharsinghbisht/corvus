@@ -1,0 +1,5 @@
+# Sanitized host backup status only. No backup key, snapshot, or Docker socket in the app.
+services:
+  api:
+    volumes:
+      - ${CORVUS_CONFIG_DIR}/operations:/run/corvus/operations:ro

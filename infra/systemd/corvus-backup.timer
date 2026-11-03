@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Corvus encrypted backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+RandomizedDelaySec=10m
+Persistent=true
+Unit=corvus-backup.service
+
+[Install]
+WantedBy=timers.target
