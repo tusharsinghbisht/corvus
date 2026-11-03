@@ -42,7 +42,12 @@ def initialize(settings):
             )
             version = 4
         if version == 4:
-            db.execute(Path(__file__).with_name('migrations').joinpath('005_worker_runtime.sql').read_text())
+            db.execute(
+                Path(__file__)
+                .with_name("migrations")
+                .joinpath("005_worker_runtime.sql")
+                .read_text()
+            )
         elif version != 5:
             raise ValueError("Unsupported database schema version")
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():

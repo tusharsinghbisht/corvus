@@ -34,7 +34,10 @@ def main():
             except Exception:
                 analysis_configured = False
             with connect(settings) as db:
-                db.execute('UPDATE worker_runtime SET heartbeat_at=now(),analysis_configured=%s WHERE singleton', (analysis_configured,))
+                db.execute(
+                    "UPDATE worker_runtime SET heartbeat_at=now(),analysis_configured=%s WHERE singleton",
+                    (analysis_configured,),
+                )
                 identifiers = [
                     row["id"]
                     for row in db.execute(

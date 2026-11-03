@@ -224,13 +224,21 @@ def create_app(settings):
         q: str = Query(default="", max_length=100),
         connection: UUID | None = None,
         before: str | None = Query(default=None, max_length=500),
-        view: Literal['all','uninvestigated','active','needs_review','follow_up','reviewed','attention'] = 'all',
+        view: Literal[
+            "all", "uninvestigated", "active", "needs_review", "follow_up", "reviewed", "attention"
+        ] = "all",
         current=Depends(user),
     ):
         try:
             with connect(settings) as db:
                 return alerts.listing(
-                    db, hours=hours, minimum=minimum, search=q, connection=connection, before=before, view=view
+                    db,
+                    hours=hours,
+                    minimum=minimum,
+                    search=q,
+                    connection=connection,
+                    before=before,
+                    view=view,
                 )
         except ValueError:
             raise HTTPException(400, "Invalid alert cursor") from None
@@ -291,13 +299,24 @@ def create_app(settings):
         with connect(settings) as db:
             return reviews.create(db, identifier, attempt_id, body, current["id"])
 
-    @app.get('/api/alerts/{identifier}/investigations/{attempt_id}/export')
-    def export_investigation(identifier: UUID, attempt_id: UUID, format: Literal['zip','markdown'] = 'zip', current=Depends(user)):
+    @app.get("/api/alerts/{identifier}/investigations/{attempt_id}/export")
+    def export_investigation(
+        identifier: UUID,
+        attempt_id: UUID,
+        format: Literal["zip", "markdown"] = "zip",
+        current=Depends(user),
+    ):
         with connect(settings) as db:
-            content, media_type, filename = exporting.build(db, identifier, attempt_id, current['id'], format=format)
-        return Response(content, media_type=media_type, headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+            content, media_type, filename = exporting.build(
+                db, identifier, attempt_id, current["id"], format=format
+            )
+        return Response(
+            content,
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
-    @app.get('/api/operations')
+    @app.get("/api/operations")
     def operations_status(current=Depends(user)):
         with connect(settings) as db:
             return operations.readiness(db)
