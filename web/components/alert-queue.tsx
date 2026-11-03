@@ -25,6 +25,7 @@ export function AlertQueue() {
   const [minimum, setMinimum] = useState("0");
   const [hours, setHours] = useState("24");
   const [connection, setConnection] = useState("");
+  const [view, setView] = useState("all");
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [updated, setUpdated] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -48,7 +49,7 @@ export function AlertQueue() {
       inFlight = true;
       const current = ++sequence;
       try {
-        const params = new URLSearchParams({ hours, minimum, q: query });
+        const params = new URLSearchParams({ hours, minimum, q: query, view });
         if (connection) params.set("connection", connection);
         if (cursor) params.set("before", cursor);
         const [page, connections] = await Promise.all([
@@ -78,7 +79,7 @@ export function AlertQueue() {
       controller.abort();
       if (timer) clearInterval(timer);
     };
-  }, [hours, minimum, query, connection, cursor, router]);
+  }, [hours, minimum, query, connection, cursor, router, view]);
   const connections = sources?.connections || [];
   const active = connections.filter(
     (c) =>
@@ -168,7 +169,7 @@ export function AlertQueue() {
                 {cursor ? "Historical page" : "Refreshes every 5s"}
               </span>
             </div>
-            <div className="toolbar">
+            <div className="toolbar queue-toolbar">
               <div className="search-wrap">
                 <Search size={16} />
                 <input
@@ -205,6 +206,22 @@ export function AlertQueue() {
                 <option value="7">Medium and above</option>
                 <option value="12">High and critical</option>
                 <option value="15">Critical only</option>
+              </select>
+              <select
+                aria-label="Investigation queue"
+                value={view}
+                onChange={(event) => {
+                  setView(event.target.value);
+                  setCursors([null]);
+                }}
+              >
+                <option value="all">All investigations</option>
+                <option value="uninvestigated">Not investigated</option>
+                <option value="active">Active investigations</option>
+                <option value="needs_review">Needs human review</option>
+                <option value="follow_up">Follow-up needed</option>
+                <option value="reviewed">Assessment reviewed</option>
+                <option value="attention">Technical failures</option>
               </select>
               {connections.length > 1 && (
                 <select
@@ -316,8 +333,9 @@ export function AlertQueue() {
                       <td colSpan={6} className="table-empty">
                         <h3>No matching alerts.</h3>
                         <p>
-                          Try a wider time window or check your connection’s
-                          sync progress.
+                          Review queues respect the selected time window. Widen
+                          it for older reports, choose another queue, or check
+                          connection sync health.
                         </p>
                       </td>
                     </tr>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import type { AnalystSettings as Settings } from "@/lib/policies";
 import { AnalystPolicyCard } from "./analyst-policy";
+import { OperationalReadiness } from "./operational-readiness";
 
 export function AnalystSettings() {
   const router = useRouter();
@@ -64,6 +65,7 @@ export function AnalystSettings() {
           {error}
         </div>
       )}
+      <OperationalReadiness />
       <section className="panel policy-card">
         <div className="panel-heading">
           <div>

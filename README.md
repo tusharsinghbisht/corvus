@@ -4,7 +4,7 @@ An alert investigation service. Corvus connects security detections to supportin
 
 ## Status
 
-**Working:** authenticated Wazuh onboarding, checkpointed alert ingestion, filtering/pagination, sync health, and source inspection. Manual investigations add bounded evidence collection, explicit per-bundle external-processing approval, one Analyst request, validated advisory reports, citations, durable attempt history, and evidence-bound human review with rationale and preserved decisions. See [manual triage](docs/manual-triage.md) and [deployment](docs/deployment.md).
+**Working:** authenticated Wazuh onboarding, checkpointed alert ingestion, filtering/pagination, sync health, and source inspection. Manual investigations add bounded evidence collection, explicit per-bundle external-processing approval, one Analyst request, validated advisory reports, citations, durable attempt history, and evidence-bound human review with rationale and preserved decisions. Operational queues, rejected-candidate diagnostics, private Markdown/ZIP handoffs, and scheduled encrypted snapshots with isolated restore verification complete the Analyst-first slice. See [prototype scope](docs/prototype.md), [manual triage](docs/manual-triage.md), and [deployment](docs/deployment.md).
 
 **Manual by default:** ingestion alone never queues model requests. Automatic Analyst triage is opt-in per connection, with separate external-processing consent, severity eligibility, and rolling request budgets. It excludes historical backlogs and never retries failed calls. Assessment review is recorded separately; incident resolution and response execution are not implemented.
 
@@ -22,8 +22,8 @@ python3 -m venv .venv
 .venv/bin/corvus --help
 
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/ruff check src tests infra/wazuh evaluations
-.venv/bin/ruff format --check src tests infra/wazuh evaluations
+.venv/bin/ruff check src tests infra evaluations
+.venv/bin/ruff format --check src tests infra evaluations
 ```
 
 Collection uses a private configuration file and dedicated read-only credentials. The Analyst uses separate model-provider configuration. Neither belongs in Git.
@@ -60,7 +60,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for module boundaries, tests, and the dev
 
 ## GitHub workflow
 
-Work locally, run the checks above, commit, and push to GitHub. The VPS checkout is `/opt/corvus/app`:
+Edit locally, commit, and push to GitHub. Pull the same source to the authorized VM, run checks there, and deploy only after they pass. The VPS checkout is `/opt/corvus/app`:
 
 ```bash
 ssh wazuh 'git -C /opt/corvus/app pull --ff-only'
@@ -78,7 +78,9 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 
 ## Documentation
 
-- [Deployment and operations](docs/deployment.md)
+- [First prototype scope and operator path](docs/prototype.md)
+- [Deployment](docs/deployment.md)
+- [Encrypted backups and recovery](docs/operations.md)
 - [Architecture](docs/architecture.md)
 - [Collector setup and CLI](docs/read-only-cli.md)
 - [Manual investigations and approval](docs/manual-triage.md)

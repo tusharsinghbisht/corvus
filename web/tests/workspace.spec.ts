@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 test.skip(
   !process.env.CORVUS_TEST_DATABASE_URL,
@@ -42,6 +43,7 @@ test("private APIs reject anonymous access", async ({ page, request }) => {
     "/api/alerts",
     "/api/settings/analyst",
     "/api/agents/analyst",
+    "/api/operations",
   ])
     expect((await request.get(path)).status()).toBe(401);
   await page.goto("/soc");
@@ -191,6 +193,12 @@ test("Analyst report, interactive evidence map, approval, and preserved failure 
   await expect(investigation.locator("pre:visible")).toContainText(
     "invalid candidate",
   );
+  await expect(
+    investigation.getByRole("region", {
+      name: "Report integrity issues",
+      exact: true,
+    }),
+  ).toContainText("Nothing is repaired or retried automatically");
   // Reload defaults to the last valid report, not the newest failed attempt.
   await page.reload();
   await expect(
@@ -434,6 +442,89 @@ test("Settings policies require explicit consent and the Analyst navigation is o
     page.getByRole("heading", { name: "Recent investigations" }),
   ).toBeVisible();
   await expect(page.locator(".table-wrap")).toBeVisible();
+});
+
+test("investigation queue filters and private handoffs never start another model request", async ({
+  page,
+}) => {
+  const started: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().includes("/investigations")
+    )
+      started.push(request.url());
+  });
+  await login(page);
+  const queue = page.getByLabel("Investigation queue", { exact: true });
+  await queue.selectOption("reviewed");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await queue.selectOption("needs_review");
+  await expect(page.locator(".alert-title")).toHaveCount(0);
+  await queue.selectOption("attention");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await page.locator(".alert-title").click();
+  const handoff = page.locator(".investigation-export");
+  await handoff.locator("summary").click();
+  const summary = handoff.getByRole("button", {
+    name: "Download report summary",
+    exact: true,
+  });
+  await expect(summary).toBeDisabled();
+  await handoff.getByRole("checkbox").check();
+  const markdownEvent = page.waitForEvent("download");
+  await summary.click();
+  const markdown = await markdownEvent;
+  expect(markdown.suggestedFilename()).toMatch(/^corvus-investigation-.*\.md$/);
+  const text = await readFile((await markdown.path())!, "utf8");
+  expect(text).toContain("# Corvus investigation");
+  expect(text).toContain("## Human review history");
+  expect(text).not.toContain("<img");
+  const zipEvent = page.waitForEvent("download");
+  await handoff
+    .getByRole("button", { name: "Download evidence package", exact: true })
+    .click();
+  const zip = await zipEvent;
+  expect(zip.suggestedFilename()).toMatch(/^corvus-investigation-.*\.zip$/);
+  expect((await readFile((await zip.path())!)).subarray(0, 2).toString()).toBe(
+    "PK",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await handoff.scrollIntoViewIfNeeded();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "../artifacts/browser-tests/investigation-handoff-mobile.png",
+  });
+  expect(started).toEqual([]);
+});
+
+test("Settings displays real readiness without administrative or model execution controls", async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  const readiness = page.getByRole("region", {
+    name: "Operational readiness",
+    exact: true,
+  });
+  await expect(readiness).toContainText("Worker heartbeat");
+  await expect(readiness).toContainText("Not configured");
+  await expect(readiness).toContainText("Snapshots are local to this VM");
+  await expect(readiness.getByRole("button")).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await readiness.scrollIntoViewIfNeeded();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "../artifacts/browser-tests/operational-readiness-mobile.png",
+  });
 });
 
 test("mobile workspace stays within the viewport", async ({ page }) => {

@@ -90,7 +90,7 @@ export type AttemptDetail = Attempt & {
     report: unknown;
     validation: {
       valid: boolean;
-      errors: { code: string; message: string }[];
+      errors: { code: string; message: string; path?: string }[];
       [key: string]: unknown;
     };
     [key: string]: unknown;

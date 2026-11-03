@@ -68,7 +68,7 @@ The Analyst can request correlation or intel work without granting either role r
 
 Use PostgreSQL first. Transactions, uniqueness constraints, job state, indexed filtering, time buckets, and percentiles cover the current workload. DuckDB is an option for later offline analysis. ClickHouse needs measured analytical scale to justify another datastore; it is not needed now.
 
-Alert identity is `(connection, native index, native document ID)`. Keep indexed/source time separate from Corvus receipt time. Preserve triage attempts rather than overwriting them. Define and verify retention/backups before treating the deployment as durable production storage.
+Alert identity is `(connection, native index, native document ID)`. Keep indexed/source time separate from Corvus receipt time. Preserve triage attempts rather than overwriting them. Host-only encrypted snapshots with isolated restore verification protect the prototype; off-host copies and live source-data retention remain operator responsibilities. See [backup/recovery](operations.md) and [completed prototype scope](prototype.md). Do not treat local snapshots as full disaster recovery.
 
 ## Ingestion
 

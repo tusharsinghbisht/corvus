@@ -10,6 +10,9 @@ export function InvestigationFailure({ attempt }: { attempt: AttemptDetail }) {
   const incomplete = attempt.error_code === "incomplete_model_response";
   let explanation =
     "This attempt could not complete. Inspect its preserved evidence and provenance before requesting another attempt.";
+  if (attempt.error_code === "restored_backup_requires_reapproval")
+    explanation =
+      "This attempt came from a restored snapshot. Corvus cannot prove whether it completed after that backup, so the old queue was disarmed. A new request requires fresh approval.";
   if (incomplete) {
     if (reason === "length") {
       explanation =
@@ -56,7 +59,7 @@ export function InvestigationFailure({ attempt }: { attempt: AttemptDetail }) {
           </p>
         )}
         <p>
-          {attempt.request_started_at
+          {attempt.request_started_at || attempt.status === "unknown"
             ? "This request may have incurred a charge. No automatic retry is made; a new attempt requires fresh evidence approval."
             : "No model request was started. A new attempt must be requested explicitly."}
         </p>

@@ -106,6 +106,14 @@ def cipher(paths):
     return Fernet(paths.key.read_bytes().strip())
 
 
+def sync_directory(path):
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def status(paths, **changes):
     try:
         previous = json.loads(paths.status.read_text())
@@ -146,13 +154,23 @@ def exclusive(paths):
                 shutil.rmtree(path)
         # A killed check can leave an isolated DB; never touch application containers.
         stale = (
-            command(["docker", "ps", "-aq", "--filter", "label=corvus.restore-check=true"])
+            command(
+                [
+                    "docker",
+                    "ps",
+                    "-aq",
+                    "--filter",
+                    "label=corvus.restore-check=true",
+                    "--filter",
+                    "name=^/corvus-restore-check-",
+                ]
+            )
             .decode()
             .splitlines()
         )
         for identifier in stale:
             if re.fullmatch(r"[a-f0-9]{12,64}", identifier):
-                command(["docker", "rm", "-f", identifier])
+                command(["docker", "rm", "-f", "-v", identifier])
         yield
 
 
@@ -197,7 +215,12 @@ def capture_database(paths, destination):
                     ],
                     stdout=output,
                 )
-    return {"schema_version": schema, "counts": counts}
+    image = (
+        command(["docker", "inspect", "--format", "{{.Config.Image}}", "corvus-api-1"])
+        .decode()
+        .strip()
+    )
+    return {"schema_version": schema, "counts": counts, "observed_api_image": image}
 
 
 def pack(paths, dump, metadata):
@@ -369,7 +392,7 @@ def restore_check(paths, archive_path, *, publish_status=True):
         return manifest
     finally:
         try:
-            command(["docker", "rm", "-f", name], timeout=30)
+            command(["docker", "rm", "-f", "-v", name], timeout=30)
         except BackupError:
             pass
 
@@ -413,6 +436,7 @@ def create(paths, *, verify_restore=False, keep=7):
         if verify_restore:
             restore_check(paths, temporary, publish_status=False)
         os.replace(temporary, target)
+        sync_directory(paths.archives)
         for old in snapshots(paths)[:-keep]:
             old.unlink()  # Only this tool's completed encrypted snapshots.
         extra = {"last_restore_verified_at": now()} if verify_restore else {}

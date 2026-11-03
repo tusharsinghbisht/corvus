@@ -15,6 +15,7 @@ export function SelectedEvidence({
         omitted_events: number;
         excerpted_documents: number;
         original_bytes: number;
+        canonicalized_indexed_timestamps?: number;
       }
     | undefined;
   const selectedBytes = new TextEncoder().encode(
@@ -44,6 +45,13 @@ export function SelectedEvidence({
           excerpts or field omissions. Original evidence retained locally (
           {Math.ceil(selection.original_bytes / 1024)} KiB). Selection is not
           redaction.
+        </p>
+      )}
+      {selection?.canonicalized_indexed_timestamps !== undefined && (
+        <p className="muted">
+          Canonicalized {selection.canonicalized_indexed_timestamps} indexed
+          timestamp formats for the report contract. Original source times and
+          fractional precision are preserved; no event times are inferred.
         </p>
       )}
       {evidence.gaps.map((gap, i) => (

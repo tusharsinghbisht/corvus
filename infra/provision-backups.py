@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from backup import Paths, status
+from backup import Paths, status, sync_directory
 from cryptography.fernet import Fernet
 
 
@@ -26,6 +26,7 @@ def main():
             file.write(Fernet.generate_key() + b"\n")
             file.flush()
             os.fsync(file.fileno())
+        sync_directory(paths.base)
     if paths.key.is_symlink() or paths.key.stat().st_mode & 0o077:
         raise SystemExit("Inspect unsafe backup key permissions; existing key left unchanged")
     paths.status.parent.mkdir(mode=0o755, parents=True, exist_ok=True)

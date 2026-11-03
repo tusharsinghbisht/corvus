@@ -13,6 +13,8 @@ import { AlertAnalystMode } from "./analyst-policy";
 import { EvidenceFacts } from "./evidence-facts";
 import { ReportReviewPanel } from "./report-review";
 import { ReviewBadge } from "./review-badge";
+import { InvestigationExport } from "./investigation-export";
+import { ValidationIssues } from "./validation-issues";
 
 export function Investigation({
   alertId,
@@ -321,6 +323,9 @@ export function Investigation({
                     technical record.
                   </div>
                 )}
+                {visible.status === "rejected" && (
+                  <ValidationIssues attempt={visible} />
+                )}
                 {evidence &&
                   (report ? (
                     <details>
@@ -368,6 +373,11 @@ export function Investigation({
                     Cancel unstarted work
                   </button>
                 )}
+                <InvestigationExport
+                  key={`export-${visible.id}`}
+                  alertId={alertId}
+                  attemptId={visible.id}
+                />
                 <details className="technical-record">
                   <summary>
                     Technical record · provenance, original replies, and JSON
