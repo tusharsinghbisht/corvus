@@ -6,6 +6,7 @@ No model configuration or completion is loaded. Missing/truncated data fails clo
 
 import argparse
 import json
+import time
 from datetime import timedelta
 
 from corvus.errors import BackendError
@@ -28,6 +29,7 @@ def main():
     with connect(settings) as db:
         connection = db.execute("SELECT * FROM connections ORDER BY created_at LIMIT 1").fetchone()
         backend = adapter(settings, connection)
+    started = time.monotonic()
     queries = []
     seen = set()
     written = 0
@@ -41,6 +43,8 @@ def main():
         print(data, flush=True)
 
     def capture(lower, upper):
+        if time.monotonic() - started > 120:
+            raise ValueError("Read-only export exceeded its two-minute time bound")
         if len(queries) >= 2000:
             raise ValueError("Export query budget exceeded")
         try:

@@ -34,6 +34,8 @@ def seal(root):
                 raise ValueError("Dataset symlink refused")
             if path.is_file() and not path.name.endswith((".partial", ".private.log")):
                 paths.append(path)
+    if (root / "README.md").is_file():
+        paths.append(root / "README.md")
     if not paths or sum(path.stat().st_size for path in paths) > 256 * 1024 * 1024:
         raise ValueError("Unencrypted dataset bound exceeded")
     manifest = {
@@ -75,6 +77,13 @@ def seal(root):
             file.write(encrypted)
             file.flush()
             os.fsync(file.fileno())
+        if cipher.decrypt(target.read_bytes()) != temporary.read_bytes():
+            raise ValueError("Encrypted dataset read-back mismatch")
+        fd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
         (root / "SHA256MANIFEST.json").write_bytes(raw)
         (root / "SHA256MANIFEST.json").chmod(0o600)
         print(
