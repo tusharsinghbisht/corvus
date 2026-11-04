@@ -77,6 +77,8 @@ def seal(root):
             file.write(encrypted)
             file.flush()
             os.fsync(file.fileno())
+        os.chown(target, root.stat().st_uid, root.stat().st_gid)
+        target.chmod(0o600)
         if cipher.decrypt(target.read_bytes()) != temporary.read_bytes():
             raise ValueError("Encrypted dataset read-back mismatch")
         fd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY)
