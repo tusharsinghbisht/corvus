@@ -8,6 +8,7 @@ import argparse
 import json
 from datetime import timedelta
 
+from corvus.errors import BackendError
 from corvus.server.connections import adapter
 from corvus.server.database import connect
 from corvus.server.settings import Settings
@@ -42,11 +43,25 @@ def main():
     def capture(lower, upper):
         if len(queries) >= 2000:
             raise ValueError("Export query budget exceeded")
-        result = (
-            backend.search_events(agent_id="001", start=lower, end=upper, limit=1000)
-            if args.kind == "archives"
-            else backend.list_alerts(agent_id="001", start=lower, end=upper, limit=1000)
-        )
+        try:
+            result = (
+                backend.search_events(agent_id="001", start=lower, end=upper, limit=1000)
+                if args.kind == "archives"
+                else backend.list_alerts(agent_id="001", start=lower, end=upper, limit=1000)
+            )
+        except BackendError as error:
+            queries.append(
+                {"start": lower.isoformat(), "end": upper.isoformat(), "error_code": error.code}
+            )
+            if (
+                error.code not in ("response_too_large", "timeout")
+                or (upper - lower).total_seconds() <= 1
+            ):
+                raise ValueError("Read-only export failed: " + error.code) from None
+            middle = lower + (upper - lower) / 2
+            capture(lower, middle)
+            capture(middle, upper)
+            return
         queries.append(
             {
                 "start": lower.isoformat(),

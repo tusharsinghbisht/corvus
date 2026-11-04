@@ -19,6 +19,7 @@ def load(path):
 
 def export(path):
     events = []
+    manifest = None
     with gzip.open(path, "rt") as file:
         for line in file:
             row = json.loads(line)
@@ -26,7 +27,11 @@ def export(path):
                 events.append(row["document"])
             else:
                 manifest = row
-    if not manifest["complete_within_queries"] or len(events) != manifest["events"]:
+    if (
+        not manifest
+        or not manifest.get("complete_within_queries")
+        or len(events) != manifest.get("events")
+    ):
         raise ValueError("Incomplete indexed export")
     return events, manifest
 

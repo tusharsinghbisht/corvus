@@ -1,12 +1,12 @@
 # Windows technique-emulation plan
 
-Target: authorized lab endpoint `windy` (Wazuh agent `001`), PowerShell over SSH. Real telemetry, not rewritten synthetic events. No simulation has been performed as part of this plan yet.
+Target: authorized lab endpoint `windy` (Wazuh agent `001`), PowerShell over SSH. Real telemetry, not rewritten synthetic events. The first bounded campaign was executed on 2026-11-04; see [preserved dataset and endpoint retirement](windows-dataset.md) for counts, safeguards, capture recovery, and limitations.
 
 ## Framework choice
 
 **Atomic Red Team is the sole simulation framework for this implementation.** Use reviewed tests from [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team), executed directly or through its PowerShell runner [Invoke-AtomicRedTeam](https://github.com/redcanaryco/invoke-atomicredteam). Invoke-AtomicRedTeam is a runner for the same test library, not a second emulation framework. Individual tests are inspectable and can be chained into a controlled scenario producing real endpoint telemetry.
 
-CALDERA is not part of this deployment or execution plan. Its extra controller and endpoint agent are unnecessary for validating the first live ingestion/Analyst workflow. No simulation framework has been installed or executed yet.
+CALDERA is not part of this deployment or execution plan. Its extra controller and endpoint agent are unnecessary for validating the first live ingestion/Analyst workflow. The reviewed Atomic definitions were executed directly through a strictly allowlisted PowerShell controller; no full framework or prerequisite installer was installed. Three rounds plus inventory controls produced 12 replay cases, not a broad malicious-attack benchmark.
 
 Reviewed upstream snapshots (pin and re-fetch before execution):
 - Atomic Red Team: `e8cfc418a064ee50d831f41a8aeccf5b80a202f5`
