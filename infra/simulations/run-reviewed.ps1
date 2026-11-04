@@ -78,7 +78,7 @@ foreach ($channel in $channels) {
  $destination = Join-Path $base $name
  & wevtutil.exe epl $channel $destination "/q:*[System[TimeCreated[@SystemTime>='$filterStart' and @SystemTime<='$filterEnd']]]" /ow:false
  if ($LASTEXITCODE -ne 0) { throw 'Native event export failed; do not retire endpoint yet' }
- $eventCount = @(Get-WinEvent -Path $destination -ErrorAction SilentlyContinue).Count
+ $eventCount = [System.Diagnostics.Eventing.Reader.EventLogSession]::GlobalSession.GetLogInformation($destination,[System.Diagnostics.Eventing.Reader.PathType]::FilePath).RecordCount
  $exports += @{channel=$channel;file=$name;records=$eventCount;bytes=(Get-Item -LiteralPath $destination).Length;sha256=(Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLower()}
 }
 # Preserve retained native history before endpoint retirement, not just indexed archives.
@@ -88,7 +88,7 @@ foreach ($channel in $channels) {
  & wevtutil.exe epl $channel $destination /ow:false
  if ($LASTEXITCODE -ne 0) { throw 'Historical native export failed; do not retire endpoint yet' }
  if ((Get-Item -LiteralPath $destination).Length -gt 268435456) { throw 'Native file exceeds reviewed export bound; inspect before retirement' }
- $count = (Get-WinEvent -Path $destination -ErrorAction SilentlyContinue | Measure-Object).Count
+ $count = [System.Diagnostics.Eventing.Reader.EventLogSession]::GlobalSession.GetLogInformation($destination,[System.Diagnostics.Eventing.Reader.PathType]::FilePath).RecordCount
  $history += @{channel=$channel;file=[IO.Path]::GetFileName($destination);records=$count;bytes=(Get-Item -LiteralPath $destination).Length;sha256=(Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLower()}
 }
 $history | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $base 'retained-native-history.json') -Encoding UTF8
