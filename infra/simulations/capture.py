@@ -57,9 +57,9 @@ def main():
                 "truncated": result.truncated,
             }
         )
-        if result.error or (result.partial and not result.truncated):
-            raise ValueError("Incomplete backend export; do not retire endpoint based on this file")
-        if result.truncated:
+        # Read-only partial searches can be retried with smaller bounded windows.
+        # Never publish a partial leaf, even if it happened to return its reported total.
+        if result.truncated or result.partial or result.error:
             if (upper - lower).total_seconds() <= 1:
                 raise ValueError("Dense window exceeds safe export bound")
             middle = lower + (upper - lower) / 2
