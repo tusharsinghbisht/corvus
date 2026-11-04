@@ -69,6 +69,17 @@ foreach ($channel in $channels) {
  $eventCount = @(Get-WinEvent -Path $destination -ErrorAction SilentlyContinue).Count
  $exports += @{channel=$channel;file=$name;records=$eventCount;bytes=(Get-Item -LiteralPath $destination).Length;sha256=(Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLower()}
 }
+# Preserve retained native history before endpoint retirement, not just indexed archives.
+$history = @()
+foreach ($channel in $channels) {
+ $destination = Join-Path $base ('historical-'+$channel.Replace('/','_')+'.evtx')
+ & wevtutil.exe epl $channel $destination /ow:false
+ if ($LASTEXITCODE -ne 0) { throw 'Historical native export failed; do not retire endpoint yet' }
+ if ((Get-Item -LiteralPath $destination).Length -gt 268435456) { throw 'Native file exceeds reviewed export bound; inspect before retirement' }
+ $count = (Get-WinEvent -Path $destination -ErrorAction SilentlyContinue | Measure-Object).Count
+ $history += @{channel=$channel;file=[IO.Path]::GetFileName($destination);records=$count;bytes=(Get-Item -LiteralPath $destination).Length;sha256=(Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLower()}
+}
+$history | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $base 'retained-native-history.json') -Encoding UTF8
 $rulesHash = $null
 try { $rules=(Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\SysmonDrv\Parameters' -Name Rules).Rules; if ($rules -is [byte[]]) { $rulesHash=([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($rules))).Replace('-','').ToLower() } } catch { }
 @{end_utc=$end.ToString('o');native_window_start=$filterStart;native_window_end=$filterEnd;exports=$exports;services_after=@(Get-Service Sysmon64,WazuhSvc | Select-Object Name,Status);sysmon_registry_rules_sha256=$rulesHash;sysmon_hash_note='Hash of registry Rules bytes if readable; no configuration changes.'} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $base 'native-export.json') -Encoding UTF8
