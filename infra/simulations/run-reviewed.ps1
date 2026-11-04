@@ -43,9 +43,21 @@ try {
     $started = [DateTime]::UtcNow
     $out = Join-Path $base ($key+'.stdout.txt')
     $err = Join-Path $base ($key+'.stderr.txt')
-    $p = Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList @('/d','/s','/c',('"'+$line+'"')) -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+    $info = New-Object System.Diagnostics.ProcessStartInfo
+    $info.FileName = "$env:SystemRoot\System32\cmd.exe"
+    $info.Arguments = '/d /s /c "'+$line+'"'
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $info
+    if (-not $p.Start()) { throw 'Reviewed process did not start' }
+    $stdoutTask = $p.StandardOutput.ReadToEndAsync()
+    $stderrTask = $p.StandardError.ReadToEndAsync()
     if (-not $p.WaitForExit(90000)) { throw 'Reviewed command timed out; stop and inspect this process manually' }
-    $p.Refresh()
+    $stdoutTask.Result | Set-Content -LiteralPath $out -Encoding UTF8
+    $stderrTask.Result | Set-Content -LiteralPath $err -Encoding UTF8
     $record = @{id=$key;round=$round;guid=$test.guid;technique=$test.technique;name=$test.name;command=$line;cmd_pid=$p.Id;start_utc=$started.ToString('o');end_utc=[DateTime]::UtcNow.ToString('o');exit_code=$p.ExitCode;stdout=[IO.Path]::GetFileName($out);stderr=[IO.Path]::GetFileName($err);role=$(if ($test.guid -eq 'control') {'control'} else {'technique_emulation'})}
     [void]$records.Add($record)
     Save-Manifest
