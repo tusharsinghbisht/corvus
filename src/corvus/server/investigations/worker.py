@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 
 from ... import __version__
 from ...agents.analyst import analyze, prepare_report
-from ...agents.analyst.context import select_context, ContextBudgetError
+from ...agents.analyst.context import ContextBudgetError, select_context
 from ...errors import BackendError
 from ...evidence import collect
 from ...providers import ModelError

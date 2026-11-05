@@ -73,6 +73,17 @@ export type Attempt = {
   error_code: string | null;
 };
 export type AttemptDetail = Attempt & {
+  local_intel?: {
+    version: string;
+    mode: string;
+    truncated: boolean;
+    observations: {
+      kind: string;
+      value: string;
+      facts: string[];
+      sources: { reference: Record<string, string>; path: string }[];
+    }[];
+  } | null;
   human_review?: ReviewPage | null;
   evidence: Evidence | null;
   analysis_evidence: Evidence | null;

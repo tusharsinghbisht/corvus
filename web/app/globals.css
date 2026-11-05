@@ -2,6 +2,7 @@
 @import "../components/investigations.css";
 @import "../components/reviews.css";
 @import "../components/prototype.css";
+@import "../components/local-agents.css";
 
 :root {
   color-scheme: dark;

@@ -28,8 +28,8 @@ A database transaction lock serializes reservations and policy changes. The exis
 `src/corvus/agents/analyst/context.py` deterministically selects the input before approval or policy-authorized processing:
 
 - Always retain the triggering alert and exact backend/index/document references.
-- Prefer exact process GUID, parent creation, children/siblings, then indexed-time proximity. This selects context; it does not prove ancestry or causation.
-- Include at most 24 supporting events and at most 64 KiB of selected evidence, including collection metadata. This is a byte budget, not an exact tokenizer count.
+- Default focused context uses the local Correlation stage: representative exact process/parent/child GUID or long command-line matches, with mirrored records and repetitive event kinds deduplicated. It never pads with merely nearby events or siblings. Matches are hints, not proof of ancestry or causation.
+- Focused input contains at most **4 supporting events / 16 KiB** of selected evidence. A manual pre-approval choice can explicitly broaden the saved local input to **12 events / 48 KiB**. Fixed instructions/schema are additional input; these are byte budgets, not exact tokenizer counts. Original query counts/status remain intact while reference lists can be shortened with omission markers. See [local agents and profile switching](local-agents.md).
 - Bound nesting, object fields, lists, and long source strings. Excerpts explicitly record omitted content; full local evidence is retained separately.
 - Preserve normalized identifiers and indexed timestamps. Do not invent missing facts or perform model summarization of evidence before approval.
 - Record selection version, original digest, selected/omitted event counts, excerpted-document count, and original size in collection scope.
@@ -40,6 +40,6 @@ The selected bundle is stored as `analysis_evidence`, alongside unmodified colle
 
 ## Agent boundaries and interface
 
-The Analyst lives in `src/corvus/agents/analyst/`: `prompt.py`, `context.py`, and `workflow.py`. Its LangGraph is prepare input → one model request → validate candidate. It has no checkpointer, tool loop, automatic retry policy, or external tracing. PostgreSQL—not graph replay—owns jobs, approvals, budgets, and recovery. Shared provider transports and report contracts remain outside agent-specific folders. Other agents do not yet have implementations.
+The Analyst lives in `src/corvus/agents/analyst/`: `prompt.py`, `context.py`, and `workflow.py`. Its LangGraph is prepare input → one model request → validate candidate. It has no checkpointer, tool loop, automatic retry policy, or external tracing. PostgreSQL—not graph replay—owns jobs, approvals, budgets, and recovery. Shared provider transports and report contracts remain outside agent-specific folders. Local deterministic helpers now live in `agents/correlation/` and `agents/intel/`; autonomous enrichment and response roles remain planned. See [local agents](local-agents.md).
 
 Alert pages default to the latest report that passed integrity checks, even if a newer attempt failed. Reports show findings, interpretation, alternative explanations, gaps, and advisory recommendations. The interactive evidence map connects a finding only to its actual report citations; edges mean “cited by”, not verified entailment or causality. Node inspection displays source facts, not a fabricated process/correlation graph. Raw records remain under technical disclosures. [Human assessment review](report-review.md) records evidence-bound decisions separately from model validation; review notes never enter the Analyst input or trigger a request.

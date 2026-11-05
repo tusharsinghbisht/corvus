@@ -1,5 +1,6 @@
 import type { AttemptDetail, Evidence } from "@/lib/investigations";
 import { DocumentFacts, EvidenceFacts } from "./evidence-facts";
+import { LocalAgentContext } from "./local-agent-context";
 
 export function SelectedEvidence({
   attempt,
@@ -10,6 +11,9 @@ export function SelectedEvidence({
 }) {
   const selection = evidence.scope.context_selection as
     | {
+        profile?: string;
+        max_events?: number;
+        max_bytes?: number;
         collected_events: number;
         selected_events: number;
         omitted_events: number;
@@ -37,6 +41,20 @@ export function SelectedEvidence({
           <span>Recorded evidence gaps</span>
         </div>
       </div>
+      {selection?.profile && (
+        <p>
+          <strong>
+            {selection.profile === "focused"
+              ? "Focused context"
+              : "Broader context"}
+          </strong>{" "}
+          · trigger + up to {selection.max_events} supporting events ·{" "}
+          {Math.round((selection.max_bytes ?? 0) / 1024)} KiB evidence cap.
+          Fixed instructions/schema are additional input. The local collection
+          is not all sent to the Analyst.
+        </p>
+      )}
+      <LocalAgentContext attempt={attempt} evidence={evidence} />
       {selection && (
         <p className="muted">
           Collected {selection.collected_events} context events; selected{" "}

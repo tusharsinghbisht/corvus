@@ -148,19 +148,38 @@ export function Shell({ children }: { children: ReactNode }) {
               <div id="agent-navigation" className="agent-navigation">
                 <Link
                   href="/soc/agents/analyst"
-                  className={agentsActive ? "active" : ""}
-                  aria-current={agentsActive ? "page" : undefined}
+                  className={path === "/soc/agents/analyst" ? "active" : ""}
+                  aria-current={
+                    path === "/soc/agents/analyst" ? "page" : undefined
+                  }
                 >
                   Analyst<span>Active</span>
                 </Link>
-                {["Correlation", "Intel", "Containment", "Verification"].map(
-                  (agent) => (
-                    <div key={agent} className="planned-agent">
-                      <span>{agent}</span>
-                      <small>Planned</small>
-                    </div>
-                  ),
-                )}
+                {["Correlation", "Intel"].map((agent) => (
+                  <Link
+                    key={agent}
+                    href={`/soc/agents/${agent.toLowerCase()}`}
+                    className={
+                      path === `/soc/agents/${agent.toLowerCase()}`
+                        ? "active"
+                        : ""
+                    }
+                    aria-current={
+                      path === `/soc/agents/${agent.toLowerCase()}`
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    {agent}
+                    <span>Local</span>
+                  </Link>
+                ))}
+                {["Containment", "Verification"].map((agent) => (
+                  <div key={agent} className="planned-agent">
+                    <span>{agent}</span>
+                    <small>Planned</small>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -214,7 +233,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {settingsActive
                 ? "Settings"
                 : agentsActive
-                  ? "Agents / Analyst"
+                  ? `Agents / ${path.endsWith("/correlation") ? "Correlation" : path.endsWith("/intel") ? "Intel" : "Analyst"}`
                   : connectionsActive
                     ? "Connections"
                     : "Alerts"}

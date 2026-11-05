@@ -112,8 +112,10 @@ export function AgentArchitecture() {
       </div>
       <p className="agent-availability">
         Ingestion is live and the single-pass Analyst core is available.
-        Correlation, intel, response orchestration, containment, and
-        verification are planned—not active agents in the current deployment.
+        Autonomous correlation, intel, response orchestration, containment, and
+        verification remain planned. Local deterministic correlation and
+        indicator inspection are available today; they are not additional LLM
+        roles.
       </p>
       <div
         className="agent-map"

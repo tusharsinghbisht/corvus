@@ -8,7 +8,9 @@ An alert investigation service. Corvus connects security detections to supportin
 
 **Manual by default:** ingestion alone never queues model requests. Automatic Analyst triage is opt-in per connection, with separate external-processing consent, severity eligibility, and rolling request budgets. It excludes historical backlogs and never retries failed calls. Assessment review is recorded separately; incident resolution and response execution are not implemented.
 
-**Target architecture:** correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph runs the single-pass Analyst workflow; multi-agent handoffs and these additional roles are not active yet. See [architecture](docs/architecture.md).
+**Local agents:** Correlation narrows new Analyst input to a few matched events, and Intel inspects structured indicators locally without network/reputation lookups. Focused input defaults to 4 supporting events / 16 KiB; broadening requires an explicit pre-approval choice. See [local agents](docs/local-agents.md).
+
+**Target architecture:** autonomous correlation, investigation, intel, policy-gated containment, and independent verification share a case/evidence record. LangGraph runs the single-pass Analyst workflow; multi-agent handoffs, autonomous enrichment roles, and response agents are not active yet. See [architecture](docs/architecture.md).
 
 The earlier saved-artifact dashboard has been retired. Synthetic fixtures remain development tests, not product data. There is no response executor or autonomous investigation loop.
 
@@ -86,6 +88,7 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 - [Manual investigations and approval](docs/manual-triage.md)
 - [Analyst configuration and report validation](docs/investigation-reports.md)
 - [Human assessment review](docs/report-review.md)
+- [Focused context, Correlation, and Intel](docs/local-agents.md)
 - [Wazuh lab operations](docs/lab-setup.md)
 - [Archive collection and retention](docs/telemetry-archives.md)
 - [Windows simulation plan](docs/windows-simulation-plan.md)

@@ -1,0 +1,60 @@
+.local-agent-context {
+  margin-block: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.local-agent-context section {
+  margin-top: 20px;
+}
+.local-agent-context article {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.local-agent-context li {
+  margin-block: 8px;
+}
+.local-agent-context .evidence-reference {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.local-agent-context .indicator-value {
+  overflow-wrap: anywhere;
+}
+.local-agent-context p,
+.local-agent-context li {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.context-choice {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff03;
+}
+.context-choice > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.context-choice .button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+.context-choice .button[aria-pressed="true"] {
+  border-color: #a6a6b0;
+  background: #ffffff14;
+}
+.local-agent-intro {
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.local-agent-intro p {
+  max-width: 850px;
+  color: #a2a2ad;
+  line-height: 1.9;
+  font-size: 12px;
+}

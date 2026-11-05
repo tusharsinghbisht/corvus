@@ -227,7 +227,8 @@ export function AnalystAgent() {
       <p className="context-note">
         The Analyst uses a prepare → single request → validate LangGraph
         workflow. PostgreSQL owns approvals, policy budgets, and crash recovery.
-        Other agent roles remain planned.
+        Local Correlation and Intel stages are available. Autonomous handoffs,
+        containment, and post-response verification remain planned.
       </p>
     </>
   );

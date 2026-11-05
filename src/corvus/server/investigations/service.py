@@ -3,11 +3,11 @@
 from uuid import uuid4
 
 from fastapi import HTTPException
+from psycopg.types.json import Jsonb
 
 from ...agents.analyst import prepare_report
-from ...agents.analyst.context import select_context, ContextBudgetError
+from ...agents.analyst.context import ContextBudgetError, select_context
 from ...agents.intel import inspect as inspect_indicators
-from psycopg.types.json import Jsonb
 from ...reporting.evidence import EvidenceCatalog
 from ..database import audit
 from . import reviews

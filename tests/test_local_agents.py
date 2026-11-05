@@ -13,8 +13,9 @@ from corvus.reporting.evidence import EvidenceCatalog
 
 class LocalAgentTests(unittest.TestCase):
     def setUp(self):
-        from corvus.storage import load_json
         from test_analyst_context import ROOT
+
+        from corvus.storage import load_json
 
         self.bundle = load_json(ROOT / "fixtures/001.json")
 
@@ -228,8 +229,8 @@ class ContextChoiceTests(TriageDatabaseCase):
         self.assertEqual(self.client.get("/api/agents/local/intel").status_code, 401)
 
     def test_local_budget_failure_can_expand_without_recollection_or_model_request(self):
-        from corvus.server.investigations import service
         from corvus.server.database import connect
+        from corvus.server.investigations import service
 
         with connect(self.settings) as db:
             service.cancel(db, self.alert_id, self.identifier, self.user_id)

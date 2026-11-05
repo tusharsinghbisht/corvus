@@ -53,9 +53,9 @@ Alert intake → Correlation ↔ Analyst → Policy / human approval → Contain
 | Role | Responsibility and handoff | Current state |
 | --- | --- | --- |
 | Alert intake | Preserve detections and native identity; make alerts available for investigation | Live |
-| Correlation agent | Propose related alert/evidence sets; respond to scoped Analyst requests | Planned |
+| Correlation agent | Propose related alert/evidence sets; respond to scoped Analyst requests | Local deterministic selection is live; autonomous requests and case correlation planned |
 | Analyst agent | Own the investigation, request scoped enrichment, and produce an evidence-linked assessment | Single-pass LangGraph workflow, manual/policy-gated triage, and human assessment review; multi-agent handoffs planned |
-| Intel agent | Return sourced, time-aware indicator/behavior context to the Analyst | Planned |
+| Intel agent | Return sourced, time-aware indicator/behavior context to the Analyst | Local bounded indicator inspection is live; external reputation, autonomous enrichment, and handoffs planned |
 | Policy / approval | Validate the exact action and target; require authorization outside the models | Planned; this is code/human authority, not another agent |
 | Containment agent | Execute only an approved, scoped plan with separate response credentials | Planned |
 | Verification agent | Check fresh post-action evidence independently; return success, failure, or unknown outcome | Planned |

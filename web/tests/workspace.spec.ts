@@ -131,6 +131,23 @@ test("Analyst report, interactive evidence map, approval, and preserved failure 
     "Awaiting your approval",
   );
   await expect(approve).toBeDisabled();
+  const focused = investigation.getByRole("button", {
+    name: "Focused · up to 4 events / 16 KiB",
+    exact: true,
+  });
+  const broader = investigation.getByRole("button", {
+    name: "Broader · up to 12 events / 48 KiB",
+    exact: true,
+  });
+  await expect(focused).toHaveAttribute("aria-pressed", "true");
+  await investigation.getByRole("checkbox").check();
+  await broader.click();
+  await expect(broader).toHaveAttribute("aria-pressed", "true");
+  await expect(investigation.getByRole("checkbox")).not.toBeChecked();
+  await expect(approve).toBeDisabled();
+  await focused.click();
+  await expect(focused).toHaveAttribute("aria-pressed", "true");
+  await expect(approve).toBeDisabled();
   await investigation
     .getByText("Review evidence selected for Analyst", { exact: true })
     .click();
@@ -433,7 +450,7 @@ test("Settings policies require explicit consent and the Analyst navigation is o
     card.getByRole("button", { name: "Use manual mode" }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Agents", exact: true }).click();
-  await expect(page.locator(".planned-agent")).toHaveCount(4);
+  await expect(page.locator(".planned-agent")).toHaveCount(2);
   await page.getByRole("link", { name: "Analyst Active" }).click();
   await expect(
     page.getByRole("heading", { name: "Analyst", exact: true }),
@@ -525,6 +542,51 @@ test("Settings displays real readiness without administrative or model execution
   await page.screenshot({
     path: "../artifacts/browser-tests/operational-readiness-mobile.png",
   });
+});
+
+test("local Correlation and Intel expose real saved inputs without another model request", async ({
+  page,
+}) => {
+  const mutations: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().includes("/investigations")
+    )
+      mutations.push(request.url());
+  });
+  await login(page);
+  await page.goto("/soc/agents/correlation");
+  await expect(
+    page.getByRole("heading", { name: "Correlation", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".alert-title").first()).toBeVisible();
+  await page.locator(".alert-title").first().click();
+  await expect(page).toHaveURL(/\?attempt=/);
+  const local = page.locator(".local-agent-context");
+  await local.locator("summary").first().click();
+  await expect(
+    local.getByRole("region", { name: "Correlation selection" }),
+  ).toContainText("selection hints");
+  await expect(
+    local.getByRole("region", { name: "Local indicator intelligence" }),
+  ).toContainText("No DNS");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await local.scrollIntoViewIfNeeded();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "../artifacts/browser-tests/local-agents-mobile.png",
+  });
+  await page.goto("/soc/agents/intel");
+  await expect(
+    page.getByRole("heading", { name: "Intel", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".alert-title").first()).toBeVisible();
+  expect(mutations).toEqual([]);
 });
 
 test("mobile workspace stays within the viewport", async ({ page }) => {

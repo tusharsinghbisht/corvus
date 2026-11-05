@@ -4,7 +4,7 @@
 
 One operator can connect a read-only Wazuh backend, inspect real ingested alerts, collect bounded evidence, inspect the exact selected input, explicitly approve one external Analyst request, read an integrity-checked advisory report, record evidence-bound human assessment review, and download a private handoff. Durable PostgreSQL attempt state preserves errors, original candidates, input snapshots, and billing ambiguity without automatic retries.
 
-LangGraph executes the single-pass Analyst workflow. Other agent roles remain planned; this release does not implement a multi-agent SOC or response executor.
+LangGraph executes the single-pass Analyst workflow. Local deterministic Correlation and Intel stages now support focused evidence preparation and indicator inspection; autonomous roles and handoffs remain planned. This is not a multi-agent SOC or response executor. See [local agents](local-agents.md).
 
 ### Operator path
 

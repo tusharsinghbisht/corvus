@@ -141,11 +141,40 @@ export function Investigation({
       setRefresh((n) => n + 1);
     }
   }
+  async function chooseContext(profile: "focused" | "expanded") {
+    if (busy || !detail) return;
+    setBusy(true);
+    setApproved(false);
+    setError("");
+    try {
+      const next = await api<AttemptDetail>(`${base}/${detail.id}/context`, {
+        method: "POST",
+        body: JSON.stringify({
+          profile,
+          expected_evidence_digest: detail.evidence_digest ?? null,
+        }),
+      });
+      setDetail(next);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401)
+        router.replace("/login");
+      else
+        setError(
+          err instanceof Error ? err.message : "Context selection failed",
+        );
+    } finally {
+      setBusy(false);
+      setRefresh((value) => value + 1);
+    }
+  }
   const visible =
     detail?.id === currentId && detail?.status === selectedStatus
       ? detail
       : null;
-  const evidence = visible?.analysis_evidence ?? visible?.evidence;
+  const evidence =
+    visible?.error_code === "context_budget_exceeded"
+      ? null
+      : (visible?.analysis_evidence ?? visible?.evidence);
   const report =
     visible?.result?.status === "validated" && visible.result.validation.valid
       ? (visible.result.report as Report)
@@ -183,11 +212,9 @@ export function Investigation({
           className="investigation-steps"
           aria-label="Investigation workflow"
         >
-          <span>01 · Prepare context</span>
-          <span>02 · Consent / policy</span>
-          <span>03 · Analyst</span>
-          <span>04 · Report & evidence</span>
-          <span>05 · Human review</span>
+          <span>01 · Review focused evidence</span>
+          <span>02 · Approve one request</span>
+          <span>03 · Read report & review</span>
         </div>
         {error && (
           <div role="alert" className="notice error">
@@ -227,9 +254,10 @@ export function Investigation({
             </p>
             <p className="muted">
               Collection: this agent, ±5 minutes, six-hour process-GUID pivot
-              when available. The Analyst receives at most 24 supporting events
-              within a 64 KiB selected-evidence budget. Exclusions remain
-              explicit.
+              when available, kept locally. By default the Analyst receives only
+              the trigger and up to four directly matched supporting events
+              within 16 KiB. No nearby-event filler. Broader input is an
+              explicit choice before approval.
             </p>
           </div>
         ) : (
@@ -325,6 +353,58 @@ export function Investigation({
                 )}
                 {visible.status === "rejected" && (
                   <ValidationIssues attempt={visible} />
+                )}
+                {visible.mode === "manual" &&
+                  (visible.status === "awaiting_approval" ||
+                    (visible.status === "failed" &&
+                      visible.error_code === "context_budget_exceeded")) && (
+                    <div
+                      className="context-choice"
+                      aria-label="Analyst context size"
+                    >
+                      <h3>Start small</h3>
+                      <p>
+                        Use focused evidence for a simple investigation. Only
+                        broaden it if the selected facts leave a specific
+                        question unanswered. This changes local input only,
+                        makes no model call, and clears processing consent.
+                      </p>
+                      <div>
+                        <button
+                          className="button secondary"
+                          disabled={busy}
+                          aria-pressed={
+                            (
+                              evidence?.scope.context_selection as
+                                { profile?: string } | undefined
+                            )?.profile === "focused"
+                          }
+                          onClick={() => void chooseContext("focused")}
+                        >
+                          Focused · up to 4 events / 16 KiB
+                        </button>
+                        <button
+                          className="button secondary"
+                          disabled={busy}
+                          aria-pressed={
+                            (
+                              evidence?.scope.context_selection as
+                                { profile?: string } | undefined
+                            )?.profile === "expanded"
+                          }
+                          onClick={() => void chooseContext("expanded")}
+                        >
+                          Broader · up to 12 events / 48 KiB
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                {visible.error_code === "context_budget_exceeded" && (
+                  <p className="notice">
+                    Collection is saved locally, but no selected input fits this
+                    profile yet. Choose broader context or inspect the technical
+                    record. Nothing has been sent to a model.
+                  </p>
                 )}
                 {evidence &&
                   (report ? (
