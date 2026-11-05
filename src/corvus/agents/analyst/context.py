@@ -7,13 +7,21 @@ from copy import deepcopy
 from ...reporting.evidence import EvidenceCatalog
 from ...reporting.schema import REPORT_SCHEMA
 from ...timeutil import utc
+from ..correlation import correlate
 
-CONTEXT_VERSION = "1.1"
+CONTEXT_VERSION = "2.0"
 TIMESTAMP_PATTERN = re.compile(
     REPORT_SCHEMA["properties"]["timeline"]["items"]["properties"]["timestamp"]["pattern"]
 )
-MAX_EVENTS = 24
-MAX_BYTES = 64 * 1024
+MAX_EVENTS = 4
+MAX_BYTES = 16 * 1024
+PROFILES = {"focused": (MAX_EVENTS, MAX_BYTES), "expanded": (12, 48 * 1024)}
+
+
+class ContextBudgetError(ValueError):
+    pass
+
+
 PRIORITY = (
     "timestamp",
     "agent",
@@ -89,12 +97,39 @@ def canonicalize_indexed_time(document):
     return False
 
 
-def select_context(bundle):
+def source_view(source):
+    value = deepcopy(source)
+    data = value.get("data")
+    win = data.get("win") if isinstance(data, dict) else None
+    omitted = []
+    if isinstance(win, dict) and isinstance(win.get("eventdata"), dict) and win["eventdata"]:
+        if "full_log" in value:
+            value.pop("full_log")
+            omitted.append("/full_log")
+        if isinstance(win.get("system"), dict) and "message" in win["system"]:
+            win["system"].pop("message")
+            omitted.append("/data/win/system/message")
+    projected, reduced = project(value)
+    if omitted:
+        projected["_corvus_omitted_renderings"] = omitted
+    return projected, reduced or bool(omitted)
+
+
+def select_context(bundle, *, profile="focused"):
+    if profile not in PROFILES:
+        raise ValueError("Unknown context profile")
+    max_events, max_bytes = PROFILES[profile]
     catalog = EvidenceCatalog(bundle)
+    correlation = correlate(bundle, expanded=profile == "expanded")
     selected = deepcopy(bundle)
     selected["events"] = []
     selection = {
         "version": CONTEXT_VERSION,
+        "profile": profile,
+        "max_events": max_events,
+        "max_bytes": max_bytes,
+        "correlation_version": correlation["version"],
+        "matches": [],
         "original_evidence_digest": catalog.digest,
         "collected_events": len(bundle["events"]),
         "selected_events": 0,
@@ -102,14 +137,44 @@ def select_context(bundle):
         "excerpted_documents": 0,
         "canonicalized_indexed_timestamps": 0,
         "original_bytes": len(encoded(catalog.view)),
-        "strategy": "Trigger always retained; process-GUID matches first, then indexed-time proximity. Maximum 24 context events and 64 KiB selected evidence. Excerpts are explicitly marked; originals remain local.",
+        "strategy": "Trigger retained. Focused mode selects representative process-GUID or exact command matches only, without time-only filler or siblings. Expanded mode permits bounded broader context. Verbose Windows renderings may be omitted when structured event data exists; additional text may be lost. All omissions are explicit and originals stay local.",
     }
     selected["scope"]["context_selection"] = selection
-    selected["alert"]["source"], reduced = project(bundle["alert"]["source"])
+    selected["alert"]["source"], reduced = source_view(bundle["alert"]["source"])
     selection["excerpted_documents"] = int(reduced)
     selection["canonicalized_indexed_timestamps"] = int(
         canonicalize_indexed_time(selected["alert"])
     )
+
+    def sync_query_references():
+        # Reference lists repeat data already in selected documents. Preserve actual query
+        # counts/status/scope, but do not spend the small input budget listing omitted IDs.
+        references = {
+            json.dumps(document["reference"], sort_keys=True)
+            for document in [selected["alert"], *selected["events"]]
+        }
+        omitted = 0
+        for original, query in zip(bundle["queries"], selected["queries"]):
+            if isinstance(original.get("event_references"), list):
+                kept = [
+                    reference
+                    for reference in original["event_references"]
+                    if json.dumps(reference, sort_keys=True) in references
+                ]
+                query["event_references"] = kept
+                count = len(original["event_references"]) - len(kept)
+                if count:
+                    query["omitted_event_references"] = count
+                    query["reference_list_scope"] = (
+                        "Selected input only; returned/total counts still describe the original local query."
+                    )
+                else:
+                    query.pop("omitted_event_references", None)
+                    query.pop("reference_list_scope", None)
+                omitted += count
+        selection["omitted_query_references"] = omitted
+
+    sync_query_references()
     # One explicit gap covers all context selection omissions; it is required by validation.
     gap = {
         "code": "analyst_context_reduced",
@@ -117,53 +182,39 @@ def select_context(bundle):
     }
     selected["gaps"].append(gap)
     selected["status"] = "partial"
-    trigger = bundle["alert"]["context"]
-    timestamp = utc(trigger["timestamp"])
-
-    def rank(event):
-        context = event["context"]
-        # Exact process first, then parent creation, children, and siblings.
-        matches = [
-            (context.get("process_guid"), trigger.get("process_guid")),
-            (context.get("process_guid"), trigger.get("parent_process_guid")),
-            (context.get("parent_process_guid"), trigger.get("process_guid")),
-            (context.get("parent_process_guid"), trigger.get("parent_process_guid")),
-        ]
-        relevance = next(
-            (
-                i
-                for i, (actual, expected) in enumerate(matches)
-                if isinstance(actual, str) and actual and actual == expected
-            ),
-            4,
-        )
-        try:
-            distance = abs((utc(context["timestamp"]) - timestamp).total_seconds())
-        except (KeyError, ValueError):
-            distance = float("inf")
-        return relevance, distance, json.dumps(event["reference"], sort_keys=True)
-
-    for event in sorted(bundle["events"], key=rank):
-        if len(selected["events"]) >= MAX_EVENTS:
+    for match in correlation["candidates"]:
+        if len(selected["events"]) >= max_events:
             break
-        candidate = deepcopy(event)
-        candidate["source"], changed = project(candidate["source"])
+        candidate = deepcopy(match["document"])
+        candidate["source"], changed = source_view(candidate["source"])
         canonicalized = canonicalize_indexed_time(candidate)
         selected["events"].append(candidate)
+        selection["matches"].append(
+            {"reference": candidate["reference"], "reason": match["reason"]}
+        )
         selection["selected_events"] += 1
         selection["omitted_events"] -= 1
         selection["excerpted_documents"] += int(changed)
         selection["canonicalized_indexed_timestamps"] += int(canonicalized)
-        if len(encoded(EvidenceCatalog(selected).view)) > MAX_BYTES:
+        sync_query_references()
+        if len(encoded(EvidenceCatalog(selected).view)) > max_bytes:
             selected["events"].pop()
+            selection["matches"].pop()
             selection["selected_events"] -= 1
             selection["omitted_events"] += 1
             selection["excerpted_documents"] -= int(changed)
             selection["canonicalized_indexed_timestamps"] -= int(canonicalized)
-    if not selection["omitted_events"] and not selection["excerpted_documents"]:
+            sync_query_references()
+    if (
+        not selection["omitted_events"]
+        and not selection["excerpted_documents"]
+        and not selection["omitted_query_references"]
+    ):
         selected["gaps"].remove(gap)
         selected["status"] = bundle["status"]
     selected["events"].sort(key=lambda event: str(event["context"].get("timestamp", "")))
-    if len(encoded(EvidenceCatalog(selected).view)) > MAX_BYTES:
-        raise ValueError("Trigger and collection metadata exceed the selected context budget")
+    if len(encoded(EvidenceCatalog(selected).view)) > max_bytes:
+        raise ContextBudgetError(
+            "Trigger and collection metadata exceed this context budget; choose a broader profile locally"
+        )
     return selected

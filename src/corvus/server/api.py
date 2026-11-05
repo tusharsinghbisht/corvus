@@ -37,6 +37,12 @@ class ConnectionState(BaseModel):
     enabled: StrictBool
 
 
+class ContextChoice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    profile: Literal["focused", "expanded"]
+    expected_evidence_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ProcessingApproval(BaseModel):
     model_config = ConfigDict(extra="forbid")
     allow_external: StrictBool
@@ -265,6 +271,37 @@ def create_app(settings):
     def investigation(identifier: UUID, attempt_id: UUID, current=Depends(user)):
         with connect(settings) as db:
             return triage.detail(db, identifier, attempt_id)
+
+    @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/context")
+    def select_investigation_context(
+        identifier: UUID, attempt_id: UUID, body: ContextChoice, current=Depends(user)
+    ):
+        with connect(settings) as db:
+            return triage.choose_context(
+                db,
+                identifier,
+                attempt_id,
+                body.profile,
+                body.expected_evidence_digest,
+                current["id"],
+            )
+
+    @app.get("/api/agents/local/{kind}")
+    def local_agent_overview(kind: Literal["correlation", "intel"], current=Depends(user)):
+        with connect(settings) as db:
+            total = db.execute(
+                "SELECT count(*) AS n FROM triage_attempts WHERE analysis_evidence IS NOT NULL"
+            ).fetchone()["n"]
+            rows = db.execute("""SELECT t.id AS attempt_id,j.alert_id,t.number,t.created_at,t.status,a.title,a.agent_name,
+                t.analysis_evidence->'scope'->'context_selection'->>'profile' AS profile
+                FROM triage_attempts t JOIN triage_jobs j ON j.id=t.job_id JOIN alerts a ON a.id=j.alert_id
+                WHERE t.analysis_evidence IS NOT NULL ORDER BY t.created_at DESC,t.id DESC LIMIT 20""").fetchall()
+            return {
+                "kind": kind,
+                "mode": "local_deterministic",
+                "available_inputs": total,
+                "attempts": rows,
+            }
 
     @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/approve")
     def approve_investigation(

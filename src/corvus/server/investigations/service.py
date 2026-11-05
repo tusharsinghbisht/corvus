@@ -5,6 +5,9 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from ...agents.analyst import prepare_report
+from ...agents.analyst.context import select_context, ContextBudgetError
+from ...agents.intel import inspect as inspect_indicators
+from psycopg.types.json import Jsonb
 from ...reporting.evidence import EvidenceCatalog
 from ..database import audit
 from . import reviews
@@ -39,7 +42,12 @@ def detail(db, alert_id, attempt_id):
     ).fetchone()
     if not row:
         raise HTTPException(404, "Investigation attempt not found")
-    selected = row["analysis_evidence"] or row["evidence"]
+    selected = (
+        None
+        if row["error_code"] == "context_budget_exceeded"
+        else (row["analysis_evidence"] or row["evidence"])
+    )
+    row["local_intel"] = inspect_indicators(selected) if selected else None
     row["prepared_input"] = row["input_snapshot"] or (
         prepare_report(selected) if selected else None
     )
@@ -80,6 +88,39 @@ def request_collection(db, alert_id, user_id, *, automatic=False):
     )
     audit(db, "triage.collection_requested", identifier, user_id)
     return identifier
+
+
+def choose_context(db, alert_id, attempt_id, profile, expected_digest, user_id):
+    row = reviews.load_attempt(db, alert_id, attempt_id, lock=True)
+    recoverable = row["status"] == "failed" and row["error_code"] == "context_budget_exceeded"
+    if (
+        row["mode"] != "manual"
+        or (row["status"] != "awaiting_approval" and not recoverable)
+        or row["request_started_at"]
+        or row["approved_at"]
+        or not row["evidence"]
+    ):
+        raise HTTPException(
+            409,
+            "Only unapproved manual input can be changed; completed or started attempts are immutable",
+        )
+    if expected_digest != row["evidence_digest"]:
+        raise HTTPException(409, "Selected input changed; reload before choosing context")
+    try:
+        selected = select_context(row["evidence"], profile=profile)
+    except ContextBudgetError:
+        raise HTTPException(
+            413,
+            "This context cannot fit the selected budget; use the broader profile or inspect the local evidence",
+        ) from None
+    digest = EvidenceCatalog(selected).digest
+    db.execute(
+        """UPDATE triage_attempts SET status='awaiting_approval',analysis_evidence=%s,input_snapshot=%s,evidence_digest=%s,
+        approved_digest=NULL,approved_at=NULL,approved_by=NULL,error_code=NULL,completed_at=NULL WHERE id=%s""",
+        (Jsonb(selected), Jsonb(prepare_report(selected)), digest, attempt_id),
+    )
+    audit(db, "triage.context_selected", attempt_id, user_id)
+    return detail(db, alert_id, attempt_id)
 
 
 def approve(db, alert_id, attempt_id, digest, user_id):

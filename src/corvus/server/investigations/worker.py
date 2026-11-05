@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 
 from ... import __version__
 from ...agents.analyst import analyze, prepare_report
-from ...agents.analyst.context import select_context
+from ...agents.analyst.context import select_context, ContextBudgetError
 from ...errors import BackendError
 from ...evidence import collect
 from ...providers import ModelError
@@ -120,7 +120,11 @@ def collect_attempt(settings, attempt, collector):
                     )
             audit(db, "triage.evidence_saved", identifier)
     except Exception as exc:
-        code = exc.code if isinstance(exc, BackendError) else "collection_failed"
+        code = (
+            "context_budget_exceeded"
+            if isinstance(exc, ContextBudgetError)
+            else (exc.code if isinstance(exc, BackendError) else "collection_failed")
+        )
         fail(settings, identifier, "failed", code)
 
 
