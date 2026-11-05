@@ -48,7 +48,15 @@ def initialize(settings):
                 .joinpath("005_worker_runtime.sql")
                 .read_text()
             )
-        elif version != 5:
+            version = 5
+        if version == 5:
+            db.execute(
+                Path(__file__)
+                .with_name("migrations")
+                .joinpath("006_investigation_steps.sql")
+                .read_text()
+            )
+        elif version != 6:
             raise ValueError("Unsupported database schema version")
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             db.execute(

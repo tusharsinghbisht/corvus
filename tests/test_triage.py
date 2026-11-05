@@ -394,7 +394,7 @@ class TriageTests(TriageDatabaseCase):
             initialize(config)
             with connect(config) as db:
                 self.assertEqual(
-                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 5
+                    db.execute("SELECT max(version) AS v FROM schema_versions").fetchone()["v"], 6
                 )
                 self.assertEqual(db.execute("SELECT count(*) AS n FROM alerts").fetchone()["n"], 1)
                 self.assertEqual(

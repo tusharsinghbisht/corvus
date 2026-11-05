@@ -4,6 +4,7 @@
 @import "../components/prototype.css";
 @import "../components/local-agents.css";
 @import "../components/saved-collection.css";
+@import "../components/agent-flow.css";
 
 :root {
   color-scheme: dark;

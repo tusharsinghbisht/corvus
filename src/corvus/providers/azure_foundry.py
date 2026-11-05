@@ -88,13 +88,19 @@ class AzureFoundryClient:
     def __init__(self, config: FoundryConfig):
         self.config = config
 
-    def complete(self, messages):
+    def complete(self, messages, *, max_tokens=None):
         config = self.config
+        if max_tokens is not None and (
+            type(max_tokens) is not int or not 256 <= max_tokens <= config.max_tokens
+        ):
+            raise ModelError(
+                "invalid_output_budget", "Per-request budget cannot exceed configured limits"
+            )
         payload = json.dumps(
             {
                 "model": config.model,
                 "messages": messages,
-                "max_tokens": config.max_tokens,
+                "max_tokens": config.max_tokens if max_tokens is None else max_tokens,
                 "temperature": 0,
                 "stream": False,
                 "response_format": {"type": "json_object"},

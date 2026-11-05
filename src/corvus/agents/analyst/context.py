@@ -115,7 +115,7 @@ def source_view(source):
     return projected, reduced or bool(omitted)
 
 
-def select_context(bundle, *, profile="focused", saved_collection=None):
+def select_context(bundle, *, profile="focused", saved_collection=None, workflow="direct"):
     if profile not in PROFILES:
         raise ValueError("Unknown context profile")
     max_events, max_bytes = PROFILES[profile]
@@ -123,6 +123,15 @@ def select_context(bundle, *, profile="focused", saved_collection=None):
     correlation = correlate(bundle, expanded=profile == "expanded")
     selected = deepcopy(bundle)
     selected["events"] = []
+    if workflow not in ("direct", "agentic"):
+        raise ValueError("Unsupported investigation workflow")
+    if workflow == "agentic":
+        selected["scope"]["approved_capabilities"] = {
+            "workflow": "analyst.agentic.v1",
+            "max_model_requests": 3,
+            "tools": ["correlation", "intel"],
+            "scope": "selected evidence only; no external lookups or response actions",
+        }
     if saved_collection:
         selected["scope"]["saved_collection_reuse"] = deepcopy(saved_collection)
         selected["gaps"].append(

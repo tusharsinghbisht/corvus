@@ -36,9 +36,16 @@ class AnalystState(TypedDict, total=False):
     result: dict
 
 
-def prepare_report(bundle):
+def prepare_report(bundle, *, workflow="direct"):
     catalog = EvidenceCatalog(bundle)
-    return {
+    from .planning import PLAN_INSTRUCTIONS, PLAN_SCHEMA, WORKFLOW
+
+    if workflow not in ("direct", "agentic"):
+        raise ValueError("Unsupported investigation workflow")
+    result = {
+        "workflow": deepcopy(WORKFLOW)
+        if workflow == "agentic"
+        else {"id": "analyst.single_pass.v1", "max_model_requests": 1},
         "prompt_version": PROMPT_VERSION,
         "instructions": INSTRUCTIONS,
         "report_schema": deepcopy(REPORT_SCHEMA),
@@ -46,6 +53,9 @@ def prepare_report(bundle):
         "evidence_digest": catalog.digest,
         "evidence": catalog.view,
     }
+    if workflow == "agentic":
+        result.update(plan_schema=deepcopy(PLAN_SCHEMA), plan_instructions=PLAN_INSTRUCTIONS)
+    return result
 
 
 def prepare(state):
@@ -125,7 +135,16 @@ def build_graph():
 _GRAPH = build_graph()
 
 
-def analyze(bundle, model: AnalystModel, *, on_reply=None, input_snapshot=None):
+def analyze(bundle, model: AnalystModel, *, on_reply=None, input_snapshot=None, on_step=None):
+    identifier = (input_snapshot or {}).get("workflow", {}).get("id", "analyst.single_pass.v1")
+    if identifier == "analyst.agentic.v1":
+        from .agentic import investigate
+
+        return investigate(
+            bundle, model, input_snapshot=input_snapshot, on_reply=on_reply, on_step=on_step
+        )
+    if identifier != "analyst.single_pass.v1":
+        raise ValueError("Unsupported approved workflow")
     # External tracing must not create a second, unapproved evidence destination.
     with tracing_context(enabled=False):
         state = _GRAPH.invoke(

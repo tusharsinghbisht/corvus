@@ -22,6 +22,7 @@ METADATA = (
     "job_id",
     "number",
     "mode",
+    "workflow",
     "status",
     "created_at",
     "requested_by",
@@ -175,6 +176,12 @@ def build(db, alert_id, attempt_id, user_id, *, format="zip"):
         ),
         "attempt.json": encode({key: attempt[key] for key in METADATA}),
         "reviews.json": encode(history),
+        "steps.json": encode(
+            db.execute(
+                "SELECT * FROM investigation_steps WHERE attempt_id=%s ORDER BY position",
+                (attempt_id,),
+            ).fetchall()
+        ),
     }
     for name, value in [
         ("selected-evidence.json", selected),

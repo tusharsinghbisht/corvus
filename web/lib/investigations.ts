@@ -65,7 +65,19 @@ export type CollectionReuse = {
   original_collected_at: string | null;
   reused_at: string;
 };
+export type InvestigationStep = {
+  id: string;
+  position: number;
+  phase: "plan" | "correlation" | "intel" | "assessment";
+  state: string;
+  model_request: boolean;
+  started_at: string;
+  completed_at: string | null;
+  error_code: string | null;
+  output: Record<string, unknown> | null;
+};
 export type Attempt = {
+  workflow?: "direct" | "agentic";
   id: string;
   number: number;
   status: string;
@@ -88,6 +100,7 @@ export type Attempt = {
   error_code: string | null;
 };
 export type AttemptDetail = Attempt & {
+  steps?: InvestigationStep[];
   saved_collection?: SavedCollection | null;
   local_intel?: {
     version: string;

@@ -15,7 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from ..errors import BackendError, ConfigError
 from . import alerts, auth, connections, operations
 from .database import audit, connect, initialize
-from .investigations import exporting, overview, policy, reviews
+from .investigations import exporting, overview, policy, reviews, steps
 from .investigations import service as triage
 from .settings import Settings
 
@@ -37,21 +37,29 @@ class ConnectionState(BaseModel):
     enabled: StrictBool
 
 
+class InvestigationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    workflow: Literal["direct", "agentic"] = "agentic"
+
+
 class SavedCollectionInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source_evidence_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     acknowledge_historical: StrictBool
     profile: Literal["focused", "expanded"] = "focused"
+    workflow: Literal["direct", "agentic"] = "direct"
 
 
 class ContextChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    workflow: Literal["direct", "agentic"] | None = None
     profile: Literal["focused", "expanded"]
     expected_evidence_digest: str | None = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 class ProcessingApproval(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    model_request_limit: int = Field(default=1, ge=1, le=3, strict=True)
     allow_external: StrictBool
     evidence_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
@@ -270,9 +278,15 @@ def create_app(settings):
             return {"attempts": triage.history(db, identifier)}
 
     @app.post("/api/alerts/{identifier}/investigations", status_code=201)
-    def investigate(identifier: UUID, current=Depends(user)):
+    def investigate(
+        identifier: UUID, body: InvestigationInput | None = None, current=Depends(user)
+    ):
         with connect(settings) as db:
-            return {"id": triage.request_collection(db, identifier, current["id"])}
+            return {
+                "id": triage.request_collection(
+                    db, identifier, current["id"], workflow=body.workflow if body else "direct"
+                )
+            }
 
     @app.get("/api/alerts/{identifier}/investigations/{attempt_id}")
     def investigation(identifier: UUID, attempt_id: UUID, current=Depends(user)):
@@ -298,24 +312,13 @@ def create_app(settings):
                 body.profile,
                 body.expected_evidence_digest,
                 current["id"],
+                workflow=body.workflow,
             )
 
     @app.get("/api/agents/local/{kind}")
     def local_agent_overview(kind: Literal["correlation", "intel"], current=Depends(user)):
         with connect(settings) as db:
-            total = db.execute(
-                "SELECT count(*) AS n FROM triage_attempts WHERE analysis_evidence IS NOT NULL"
-            ).fetchone()["n"]
-            rows = db.execute("""SELECT t.id AS attempt_id,j.alert_id,t.number,t.created_at,t.status,a.title,a.agent_name,
-                t.analysis_evidence->'scope'->'context_selection'->>'profile' AS profile
-                FROM triage_attempts t JOIN triage_jobs j ON j.id=t.job_id JOIN alerts a ON a.id=j.alert_id
-                WHERE t.analysis_evidence IS NOT NULL ORDER BY t.created_at DESC,t.id DESC LIMIT 20""").fetchall()
-            return {
-                "kind": kind,
-                "mode": "local_deterministic",
-                "available_inputs": total,
-                "attempts": rows,
-            }
+            return steps.tasks(db, kind)
 
     @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/approve")
     def approve_investigation(
@@ -324,7 +327,14 @@ def create_app(settings):
         if not body.allow_external:
             raise HTTPException(400, "Explicit external-processing approval is required")
         with connect(settings) as db:
-            triage.approve(db, identifier, attempt_id, body.evidence_digest, current["id"])
+            triage.approve(
+                db,
+                identifier,
+                attempt_id,
+                body.evidence_digest,
+                current["id"],
+                model_request_limit=body.model_request_limit,
+            )
         return {"ok": True}
 
     @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/cancel")

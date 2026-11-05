@@ -36,7 +36,7 @@ CONFIG_FILES = (
     "deploy.env",
     "analyst.json",
 )
-TABLES = ("alerts", "connections", "triage_attempts", "report_reviews")
+TABLES = ("alerts", "connections", "triage_attempts", "report_reviews", "investigation_steps")
 STATUS_FIELDS = {
     "configured",
     "encrypted",
@@ -197,7 +197,9 @@ def capture_database(paths, destination):
             if schema < 4:
                 raise BackupError("unsupported_schema")
             counts = {
-                table: db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] for table in TABLES
+                table: db.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+                for table in TABLES
+                if table != "investigation_steps" or schema >= 6
             }
             with destination.open("wb") as output:
                 command(

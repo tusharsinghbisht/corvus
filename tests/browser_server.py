@@ -58,9 +58,23 @@ def main():
         class Model:
             calls = 0
 
-            def complete(self, messages):
-                self.calls += 1
+            def complete(self, messages, *, max_tokens=None):
                 prepared = json.loads(messages[-1]["content"])
+                if prepared.get("stage") == "planning":
+                    remaining = prepared["remaining_tools"]
+                    choice = (
+                        "correlation"
+                        if "correlation" in remaining
+                        else "intel"
+                        if "intel" in remaining
+                        else "assess"
+                    )
+                    return ModelReply(
+                        json.dumps({"next": choice, "question": "Check the selected evidence."}),
+                        "offline-planner",
+                        {},
+                    )
+                self.calls += 1
                 report["evidence_digest"] = prepared["evidence_digest"]
                 if self.calls == 3:
                     raise ModelError(

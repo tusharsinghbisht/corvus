@@ -12,13 +12,13 @@ from ...agents.intel import inspect as inspect_indicators
 from ...reporting.evidence import EvidenceCatalog
 from ...timeutil import utc
 from ..database import audit
-from . import reviews
+from . import reviews, steps
 
 ACTIVE = ("pending_collection", "collecting", "awaiting_approval", "queued", "requesting")
 TERMINAL = ("validated", "rejected", "failed", "unknown", "cancelled")
 SUMMARY = """id,job_id,number,requested_by,created_at,status,collection_started_at,
     evidence_digest,approved_by,approved_at,approved_digest,request_started_at,
-    completed_at,provenance,error_code,mode,policy_version"""
+    completed_at,provenance,error_code,mode,policy_version,workflow"""
 
 
 def require_alert(db, alert_id):
@@ -76,6 +76,7 @@ def detail(db, alert_id, attempt_id):
         if row["error_code"] == "context_budget_exceeded"
         else (row["analysis_evidence"] or row["evidence"])
     )
+    row["steps"] = steps.listing(db, attempt_id)
     row["saved_collection"] = saved_collection_binding(row)
     row["local_intel"] = inspect_indicators(selected) if selected else None
     row["prepared_input"] = row["input_snapshot"] or (
@@ -97,7 +98,9 @@ def next_number(db, job_id):
     ).fetchone()["n"]
 
 
-def request_collection(db, alert_id, user_id, *, automatic=False):
+def request_collection(db, alert_id, user_id, *, automatic=False, workflow="direct"):
+    if workflow not in ("direct", "agentic") or (automatic and workflow != "direct"):
+        raise HTTPException(400, "Workflow not permitted")
     require_alert(db, alert_id)
     # The job row serializes new attempts, including simultaneous first requests.
     db.execute(
@@ -115,9 +118,9 @@ def request_collection(db, alert_id, user_id, *, automatic=False):
         raise HTTPException(409, "This alert already has an investigation attempt")
     identifier = uuid4()
     db.execute(
-        """INSERT INTO triage_attempts(id,job_id,number,requested_by,status)
-        VALUES(%s,%s,%s,%s,'pending_collection')""",
-        (identifier, job["id"], number, user_id),
+        """INSERT INTO triage_attempts(id,job_id,number,requested_by,status,workflow)
+        VALUES(%s,%s,%s,%s,'pending_collection',%s)""",
+        (identifier, job["id"], number, user_id, workflow),
     )
     audit(db, "triage.collection_requested", identifier, user_id)
     return identifier
@@ -153,7 +156,9 @@ def reuse_collection(db, alert_id, source_id, body, user_id):
         "reused_at": datetime.now(timezone.utc).isoformat(),
     }
     try:
-        selected = select_context(source["evidence"], profile=body.profile, saved_collection=reuse)
+        selected = select_context(
+            source["evidence"], profile=body.profile, saved_collection=reuse, workflow=body.workflow
+        )
     except ContextBudgetError:
         raise HTTPException(
             413,
@@ -161,8 +166,8 @@ def reuse_collection(db, alert_id, source_id, body, user_id):
         ) from None
     identifier = uuid4()
     db.execute(
-        """INSERT INTO triage_attempts(id,job_id,number,requested_by,status,mode,evidence,analysis_evidence,input_snapshot,evidence_digest,provenance)
-        VALUES(%s,%s,%s,%s,'awaiting_approval','manual',%s,%s,%s,%s,%s)""",
+        """INSERT INTO triage_attempts(id,job_id,number,requested_by,status,mode,evidence,analysis_evidence,input_snapshot,evidence_digest,provenance,workflow)
+        VALUES(%s,%s,%s,%s,'awaiting_approval','manual',%s,%s,%s,%s,%s,%s)""",
         (
             identifier,
             source["job_id"],
@@ -170,16 +175,17 @@ def reuse_collection(db, alert_id, source_id, body, user_id):
             user_id,
             Jsonb(source["evidence"]),
             Jsonb(selected),
-            Jsonb(prepare_report(selected)),
+            Jsonb(prepare_report(selected, workflow=body.workflow)),
             EvidenceCatalog(selected).digest,
             Jsonb({"saved_collection": reuse, "evidence_source": "saved_collection"}),
+            body.workflow,
         ),
     )
     audit(db, "triage.saved_collection_prepared", identifier, user_id)
     return identifier
 
 
-def choose_context(db, alert_id, attempt_id, profile, expected_digest, user_id):
+def choose_context(db, alert_id, attempt_id, profile, expected_digest, user_id, *, workflow=None):
     row = reviews.load_attempt(db, alert_id, attempt_id, lock=True)
     recoverable = row["status"] == "failed" and row["error_code"] == "context_budget_exceeded"
     if (
@@ -195,9 +201,13 @@ def choose_context(db, alert_id, attempt_id, profile, expected_digest, user_id):
         )
     if expected_digest != row["evidence_digest"]:
         raise HTTPException(409, "Selected input changed; reload before choosing context")
+    workflow = workflow or row["workflow"]
+    if workflow not in ("direct", "agentic"):
+        raise HTTPException(400, "Workflow not permitted")
     try:
         selected = select_context(
             row["evidence"],
+            workflow=workflow,
             profile=profile,
             saved_collection=(row["provenance"] or {}).get("saved_collection"),
         )
@@ -209,14 +219,20 @@ def choose_context(db, alert_id, attempt_id, profile, expected_digest, user_id):
     digest = EvidenceCatalog(selected).digest
     db.execute(
         """UPDATE triage_attempts SET status='awaiting_approval',analysis_evidence=%s,input_snapshot=%s,evidence_digest=%s,
-        approved_digest=NULL,approved_at=NULL,approved_by=NULL,error_code=NULL,completed_at=NULL WHERE id=%s""",
-        (Jsonb(selected), Jsonb(prepare_report(selected)), digest, attempt_id),
+        approved_digest=NULL,approved_at=NULL,approved_by=NULL,error_code=NULL,completed_at=NULL,workflow=%s WHERE id=%s""",
+        (
+            Jsonb(selected),
+            Jsonb(prepare_report(selected, workflow=workflow)),
+            digest,
+            workflow,
+            attempt_id,
+        ),
     )
     audit(db, "triage.context_selected", attempt_id, user_id)
     return detail(db, alert_id, attempt_id)
 
 
-def approve(db, alert_id, attempt_id, digest, user_id):
+def approve(db, alert_id, attempt_id, digest, user_id, *, model_request_limit=1):
     row = db.execute(
         """SELECT a.* FROM triage_attempts a JOIN triage_jobs j ON j.id=a.job_id
         WHERE j.alert_id=%s AND a.id=%s FOR UPDATE OF a""",
@@ -226,6 +242,8 @@ def approve(db, alert_id, attempt_id, digest, user_id):
         raise HTTPException(404, "Investigation attempt not found")
     if row["status"] != "awaiting_approval":
         raise HTTPException(409, "This attempt is not awaiting approval; refresh its state")
+    if model_request_limit != (3 if row["workflow"] == "agentic" else 1):
+        raise HTTPException(400, "Explicit approval must match this workflow request limit")
     if (
         digest != row["evidence_digest"]
         or digest != EvidenceCatalog(row["analysis_evidence"] or row["evidence"]).digest

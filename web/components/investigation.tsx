@@ -20,6 +20,7 @@ import { ReportReviewPanel } from "./report-review";
 import { ReviewBadge } from "./review-badge";
 import { InvestigationExport } from "./investigation-export";
 import { ValidationIssues } from "./validation-issues";
+import { InvestigationActivity } from "./investigation-activity";
 import {
   SavedCollectionReuse,
   HistoricalCollectionNotice,
@@ -92,21 +93,31 @@ export function Investigation({
   useEffect(() => {
     if (!currentId) return;
     const controller = new AbortController();
-    api<AttemptDetail>(`${base}/${currentId}`, { signal: controller.signal })
-      .then((data) => {
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const data = await api<AttemptDetail>(`${base}/${currentId}`, {
+          signal: controller.signal,
+        });
         if (!controller.signal.aborted) {
           setDetail(data);
           setApproved(false);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (controller.signal.aborted) return;
         if (err instanceof ApiError && err.status === 401)
           router.replace("/login");
         else
           setError(err instanceof Error ? err.message : "Attempt unavailable");
-      });
-    return () => controller.abort();
+      }
+      if (!controller.signal.aborted && selectedStatus === "requesting")
+        timer = setTimeout(poll, 2500);
+    }
+    void poll();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [base, currentId, selectedStatus, refresh, router]);
   function selectAttempt(identifier: string, pinInUrl = true) {
     setSelectedId(identifier);
@@ -121,7 +132,10 @@ export function Investigation({
     setError("");
     try {
       if (action === "collect") {
-        const data = await api<{ id: string }>(base, { method: "POST" });
+        const data = await api<{ id: string }>(base, {
+          method: "POST",
+          body: JSON.stringify({ workflow: "agentic" }),
+        });
         selectAttempt(data.id, false);
       } else
         await api(`${base}/${currentId}/${action}`, {
@@ -131,6 +145,7 @@ export function Investigation({
                 body: JSON.stringify({
                   allow_external: approved,
                   evidence_digest: detail?.evidence_digest,
+                  model_request_limit: detail?.workflow === "agentic" ? 3 : 1,
                 }),
               }
             : {}),
@@ -166,6 +181,7 @@ export function Investigation({
           profile,
           source_evidence_digest: binding.evidence_digest,
           acknowledge_historical: acknowledged,
+          workflow: "agentic",
         }),
       });
       selectAttempt(data.id);
@@ -184,7 +200,10 @@ export function Investigation({
       setRefresh((value) => value + 1);
     }
   }
-  async function chooseContext(profile: "focused" | "expanded") {
+  async function chooseContext(
+    profile: "focused" | "expanded",
+    workflow?: "direct" | "agentic",
+  ) {
     if (busy || !detail) return;
     setBusy(true);
     setApproved(false);
@@ -195,6 +214,7 @@ export function Investigation({
         body: JSON.stringify({
           profile,
           expected_evidence_digest: detail.evidence_digest ?? null,
+          ...(workflow ? { workflow } : {}),
         }),
       });
       setDetail(next);
@@ -328,6 +348,7 @@ export function Investigation({
             </p>
             {visible ? (
               <>
+                <InvestigationActivity attempt={visible} />
                 {visible.provenance?.saved_collection && (
                   <HistoricalCollectionNotice
                     reuse={visible.provenance.saved_collection}
@@ -428,7 +449,33 @@ export function Investigation({
                       className="context-choice"
                       aria-label="Analyst context size"
                     >
-                      <h3>Start small</h3>
+                      <h3>Investigation input</h3>
+                      <label>
+                        Approach
+                        <select
+                          aria-label="Investigation approach"
+                          value={visible.workflow ?? "direct"}
+                          disabled={busy}
+                          onChange={(event) =>
+                            void chooseContext(
+                              (
+                                evidence?.scope.context_selection as
+                                  { profile?: string } | undefined
+                              )?.profile === "expanded"
+                                ? "expanded"
+                                : "focused",
+                              event.target.value as "direct" | "agentic",
+                            )
+                          }
+                        >
+                          <option value="agentic">
+                            Guided · plan, tools, assess · up to 3 requests
+                          </option>
+                          <option value="direct">
+                            Direct · assessment only · 1 request
+                          </option>
+                        </select>
+                      </label>
                       <p>
                         Use focused evidence for a simple investigation. Only
                         broaden it if the selected facts leave a specific
@@ -484,7 +531,11 @@ export function Investigation({
                 {visible.status === "awaiting_approval" &&
                   visible.mode !== "automatic" && (
                     <div className="approval-box">
-                      <h3>Approve this selected evidence</h3>
+                      <h3>
+                        {visible.workflow === "agentic"
+                          ? "Approve bounded investigation"
+                          : "Approve this selected evidence"}
+                      </h3>
                       <p>
                         Review the source facts above. Selection is not
                         redaction; logs can contain personal data or secrets.
@@ -495,16 +546,18 @@ export function Investigation({
                           checked={approved}
                           onChange={(e) => setApproved(e.target.checked)}
                         />
-                        I have inspected this evidence and approve sending this
-                        exact selected input to the configured external analysis
-                        service for one advisory request. It may incur a charge.
+                        {visible.workflow === "agentic"
+                          ? "I approve this selected evidence for up to 3 model requests and bounded Correlation/Intel checks on it. Charges may apply. No new evidence lookup or response action is authorized."
+                          : "I have inspected this evidence and approve sending this exact selected input to the configured external analysis service for one advisory request. It may incur a charge."}
                       </label>
                       <button
                         className="button primary"
                         disabled={!approved || busy}
                         onClick={() => void act("approve")}
                       >
-                        Approve one Analyst request
+                        {visible.workflow === "agentic"
+                          ? "Approve guided investigation"
+                          : "Approve one Analyst request"}
                       </button>
                     </div>
                   )}

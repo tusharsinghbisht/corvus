@@ -124,7 +124,7 @@ test("Analyst report, interactive evidence map, approval, and preserved failure 
     exact: true,
   });
   const approve = investigation.getByRole("button", {
-    name: "Approve one Analyst request",
+    name: /Approve (one Analyst request|guided investigation)/,
   });
   await investigate.click();
   await expect(investigation.getByRole("status")).toContainText(
@@ -640,8 +640,7 @@ test("saved evidence prepares a pinned historical attempt without recollection o
   );
   await expect(
     investigation.getByRole("button", {
-      name: "Approve one Analyst request",
-      exact: true,
+      name: /Approve (one Analyst request|guided investigation)/,
     }),
   ).toBeDisabled();
   await page.reload();

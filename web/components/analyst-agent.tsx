@@ -4,51 +4,51 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, time } from "@/lib/api";
-import { statusLabels } from "@/lib/investigations";
-import type { AnalystSettings } from "@/lib/policies";
 import type { ReviewStatus } from "@/lib/reviews";
 import { ReviewBadge } from "./review-badge";
+import { AgentTabs } from "./agent-tabs";
 
-type Overview = AnalystSettings & {
-  stats: {
-    total: number;
-    active: number;
-    reports: number;
-    attention: number;
-    pending_review: number;
-    accepted_assessments: number;
-    rejected_assessments: number;
-    follow_up: number;
-  };
+type Overview = {
+  stats: { active: number; attention: number; pending_review: number };
   attempts: {
     id: string;
     alert_id: string;
     title: string;
     number: number;
-    mode: string;
     status: string;
+    workflow: string;
+    current_step: string | null;
     created_at: string;
-    disposition: string | null;
+    agent_name: string | null;
+    rule_level: number;
     review_status: ReviewStatus | null;
     review_stale: boolean;
+    error_code: string | null;
   }[];
 };
+function nextAction(a: Overview["attempts"][number]) {
+  if (a.status === "awaiting_approval") return "Approve input";
+  if (a.status === "validated")
+    return a.review_status === "pending" ? "Review assessment" : "Open report";
+  if (["failed", "rejected", "unknown"].includes(a.status))
+    return "Inspect failure";
+  if (a.status === "cancelled") return "Open attempt";
+  return "View progress";
+}
 export function AnalystAgent() {
   const router = useRouter();
-  const [data, setData] = useState<Overview | null>(null);
-  const [error, setError] = useState("");
-  const [reviewFilter, setReviewFilter] = useState("all");
+  const [data, setData] = useState<Overview | null>(null),
+    [error, setError] = useState(""),
+    [reviewFilter, setReviewFilter] = useState("all");
   useEffect(() => {
-    setData(null);
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
+    setData(null);
     async function poll() {
       try {
         const result = await api<Overview>(
           `/agents/analyst?review=${reviewFilter}`,
-          {
-            signal: controller.signal,
-          },
+          { signal: controller.signal },
         );
         if (!controller.signal.aborted) {
           setData(result);
@@ -58,8 +58,7 @@ export function AnalystAgent() {
         if (controller.signal.aborted) return;
         if (err instanceof ApiError && err.status === 401)
           router.replace("/login");
-        else
-          setError(err instanceof Error ? err.message : "Analyst unavailable");
+        else setError("Could not refresh investigations.");
       }
       if (!controller.signal.aborted) timer = setTimeout(poll, 5000);
     }
@@ -73,98 +72,54 @@ export function AnalystAgent() {
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">AGENTS / ANALYST</div>
           <h1>Analyst</h1>
-          <p>
-            Evidence-linked, single-pass investigation. Advisory assessments,
-            never response authority.
-          </p>
+          <p>Plan → delegated checks → assessment → human review.</p>
         </div>
-        <Link className="button secondary" href="/soc/settings">
-          Configure policy
+        <Link className="button secondary" href="/soc">
+          Investigate an alert
         </Link>
       </div>
+      <AgentTabs current="analyst" />
       {error && (
-        <p role="alert" className="notice error">
+        <p className="notice error" role="alert">
           {error}
         </p>
       )}
-      <div className="metrics">
-        <div>
-          <span>Investigation attempts</span>
-          <strong>{data?.stats.total ?? "—"}</strong>
-          <small>Manual and automatic history</small>
-        </div>
-        <div>
-          <span>Active / awaiting approval</span>
-          <strong>{data?.stats.active ?? "—"}</strong>
-          <small>Not incident count</small>
-        </div>
-        <div>
-          <span>Reports awaiting human review</span>
-          <strong>{data?.stats.pending_review ?? "—"}</strong>
-          <small>
-            {data?.stats.reports ?? "—"} total reports · counted per attempt,
-            not incident
-          </small>
-        </div>
-        <div>
-          <span>Needs attention</span>
-          <strong>{data?.stats.attention ?? "—"}</strong>
-          <small>Failed, unknown, or rejected attempts</small>
-        </div>
-      </div>
-      <div className="notice">
+      <div className="agent-counters">
         <span>
-          {data?.policies.filter((p) => p.enabled).length ?? 0} connections
-          opted into automatic processing. Global reservations:{" "}
-          {data?.global_used_day ?? 0}/{data?.global_daily_limit ?? "—"} per
-          rolling 24h. New eligible alerts only; no automatic retries.
+          <strong>{data?.stats.active ?? "—"}</strong> active
         </span>
+        <span>
+          <strong>{data?.stats.pending_review ?? "—"}</strong> need review
+        </span>
+        <span>
+          <strong>{data?.stats.attention ?? "—"}</strong> need attention
+        </span>
+        <Link href="/soc/settings">Settings ↗</Link>
       </div>
       <section className="panel">
         <div className="panel-heading">
-          <div>
-            <h2>Recent investigations</h2>
-            <p>
-              Latest 50 matching attempts. Links open the exact report, evidence
-              map, and review history.
-            </p>
-          </div>
-          <Link href="/soc">Open alert queue →</Link>
-        </div>
-        <div className="toolbar review-toolbar">
-          <label>
-            Human assessment review
-            <select
-              aria-label="Human review filter"
-              value={reviewFilter}
-              onChange={(event) => setReviewFilter(event.target.value)}
-            >
-              <option value="all">All attempts</option>
-              <option value="pending">Awaiting human review</option>
-              <option value="follow_up">Follow-up needed</option>
-              <option value="accepted">Assessment accepted</option>
-              <option value="rejected">Assessment rejected</option>
-            </select>
-          </label>
-          <p className="muted">
-            {data?.stats.accepted_assessments ?? 0} accepted ·{" "}
-            {data?.stats.rejected_assessments ?? 0} rejected ·{" "}
-            {data?.stats.follow_up ?? 0} follow-up. Recorded human decisions,
-            not incident outcomes.
-          </p>
+          <h2>Recent investigations</h2>
+          <select
+            aria-label="Human review filter"
+            value={reviewFilter}
+            onChange={(event) => setReviewFilter(event.target.value)}
+          >
+            <option value="all">All attempts</option>
+            <option value="pending">Awaiting human review</option>
+            <option value="follow_up">Follow-up needed</option>
+            <option value="accepted">Assessment accepted</option>
+            <option value="rejected">Assessment rejected</option>
+          </select>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Alert</th>
-                <th>Mode</th>
-                <th>Attempt</th>
-                <th>Outcome</th>
-                <th>Human review</th>
-                <th>Requested</th>
+                <th>Investigation</th>
+                <th>Current step</th>
+                <th>Review</th>
+                <th>Next action</th>
               </tr>
             </thead>
             <tbody>
@@ -177,14 +132,19 @@ export function AnalystAgent() {
                     >
                       {a.title}
                     </Link>
+                    <div className="table-sub">
+                      {a.agent_name || "Manager"} · #{a.number} ·{" "}
+                      {a.workflow === "agentic" ? "Guided" : "Direct"} ·{" "}
+                      {time(a.created_at)}
+                    </div>
                   </td>
-                  <td>{a.mode}</td>
-                  <td>#{a.number}</td>
                   <td>
-                    {statusLabels[a.status] ?? a.status}
-                    {a.disposition && (
+                    {a.status === "requesting"
+                      ? a.current_step || "Starting"
+                      : a.status.replaceAll("_", " ")}
+                    {a.error_code && (
                       <div className="table-sub">
-                        Advisory: {a.disposition.replaceAll("_", " ")}
+                        {a.error_code.replaceAll("_", " ")}
                       </div>
                     )}
                   </td>
@@ -195,40 +155,33 @@ export function AnalystAgent() {
                         stale={a.review_stale}
                       />
                     ) : (
-                      <span className="muted">No reviewable report</span>
+                      <span className="muted">—</span>
                     )}
                   </td>
-                  <td className="time-cell">{time(a.created_at)}</td>
+                  <td>
+                    <Link href={`/soc/alerts/${a.alert_id}?attempt=${a.id}`}>
+                      {nextAction(a)} →
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {data?.attempts.length === 0 && (
-          <div className="table-empty">
-            <h3>
-              {reviewFilter === "all"
-                ? "No investigations yet"
-                : "No matching reviews"}
-            </h3>
-            <p>
-              {reviewFilter === "all"
-                ? "Open an alert and choose Investigate with Analyst to begin."
-                : "Choose another review filter or return to all attempts."}
-            </p>
-          </div>
-        )}
         {!data && (
-          <p role="status" className="table-empty">
+          <p className="table-empty" role="status">
             Loading investigations…
+          </p>
+        )}
+        {data?.attempts.length === 0 && (
+          <p className="table-empty">
+            No matching investigations. Open an alert to prepare one.
           </p>
         )}
       </section>
       <p className="context-note">
-        The Analyst uses a prepare → single request → validate LangGraph
-        workflow. PostgreSQL owns approvals, policy budgets, and crash recovery.
-        Local Correlation and Intel stages are available. Autonomous handoffs,
-        containment, and post-response verification remain planned.
+        Assessments are advisory. Response authorization and post-action
+        verification are not implemented.
       </p>
     </>
   );

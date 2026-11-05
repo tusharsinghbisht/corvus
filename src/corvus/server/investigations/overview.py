@@ -60,7 +60,8 @@ def analyst(db, review_filter="all"):
         count(*) FILTER(WHERE a.status='validated' AND r.decision='rejected') AS rejected_assessments,
         count(*) FILTER(WHERE a.status='validated' AND r.decision='follow_up') AS follow_up
         FROM triage_attempts a {REVIEW_JOIN}""").fetchone()
-    attempts = db.execute(f"""SELECT a.id,a.number,a.status,a.mode,a.created_at,a.completed_at,a.error_code,
+    attempts = db.execute(f"""SELECT a.id,a.number,a.status,a.mode,a.workflow,a.created_at,a.completed_at,a.error_code,
+        (SELECT phase FROM investigation_steps WHERE attempt_id=a.id ORDER BY position DESC LIMIT 1) AS current_step,
         j.alert_id,e.title,e.rule_level,e.agent_name,a.result->'report'->>'disposition' AS disposition,
         r.decision AS review_decision,r.report_digest AS review_report_digest,
         CASE WHEN r.id IS NOT NULL THEN a.result END AS reviewed_result

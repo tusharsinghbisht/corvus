@@ -22,7 +22,7 @@ from ...providers.azure_foundry import AzureFoundryClient, load_foundry_config
 from ...reporting.evidence import EvidenceCatalog
 from ..connections import adapter
 from ..database import audit, connect
-from . import policy
+from . import policy, steps
 
 logger = logging.getLogger("corvus.triage")
 COLLECTION_SCOPE = {"window_minutes": 5, "ancestry_hours": 6, "limit": 100}
@@ -42,6 +42,9 @@ def configured_model():
 
 
 def recover(db):
+    db.execute(
+        "UPDATE investigation_steps SET state=CASE WHEN model_request THEN 'unknown' ELSE 'failed' END,completed_at=now(),error_code='worker_interrupted' WHERE state='running'"
+    )
     rows = db.execute(
         """UPDATE triage_attempts SET
         status=CASE WHEN status='requesting' THEN 'unknown' ELSE 'failed' END,
@@ -90,7 +93,7 @@ def collect_attempt(settings, attempt, collector):
                 "UPDATE triage_attempts SET evidence=%s WHERE id=%s AND status='collecting'",
                 (Jsonb(bundle), identifier),
             )
-        selected = select_context(bundle)
+        selected = select_context(bundle, workflow=attempt["workflow"])
         digest = EvidenceCatalog(selected).digest
         with connect(settings) as db:
             db.execute(
@@ -99,7 +102,7 @@ def collect_attempt(settings, attempt, collector):
                 (
                     Jsonb(bundle),
                     Jsonb(selected),
-                    Jsonb(prepare_report(selected)),
+                    Jsonb(prepare_report(selected, workflow=attempt["workflow"])),
                     digest,
                     identifier,
                 ),
@@ -132,7 +135,14 @@ def analyze_attempt(settings, attempt, model_factory):
     identifier = attempt["id"]
     try:
         selected = attempt["analysis_evidence"] or attempt["evidence"]
-        prepared = attempt["input_snapshot"] or prepare_report(selected)
+        prepared = attempt["input_snapshot"] or prepare_report(
+            selected, workflow=attempt["workflow"]
+        )
+        expected = (
+            "analyst.agentic.v1" if attempt["workflow"] == "agentic" else "analyst.single_pass.v1"
+        )
+        if prepared.get("workflow", {}).get("id", "analyst.single_pass.v1") != expected:
+            raise ValueError("Workflow binding changed")
         catalog = EvidenceCatalog(selected)
         if (
             prepared["evidence_digest"] != attempt["approved_digest"]
@@ -146,7 +156,8 @@ def analyze_attempt(settings, attempt, model_factory):
             **(attempt["provenance"] or {}),
             **provider,
             "context_selection": selected.get("scope", {}).get("context_selection"),
-            "orchestration": "langgraph:analyst.single_pass.v1",
+            "orchestration": "langgraph:" + expected,
+            "max_model_requests": 3 if attempt["workflow"] == "agentic" else 1,
             "prompt_version": prepared["prompt_version"],
             "corvus_version": __version__,
             "revision": os.environ.get("CORVUS_REVISION", "unknown"),
@@ -196,7 +207,13 @@ def analyze_attempt(settings, attempt, model_factory):
             )
 
     try:
-        result = analyze(selected, model, on_reply=save_reply, input_snapshot=prepared)
+        result = analyze(
+            selected,
+            model,
+            on_reply=save_reply,
+            input_snapshot=prepared,
+            on_step=steps.recorder(settings, identifier),
+        )
         with connect(settings) as db:
             db.execute(
                 """UPDATE triage_attempts SET status=%s,result=%s,completed_at=now(),
@@ -205,7 +222,11 @@ def analyze_attempt(settings, attempt, model_factory):
             )
             audit(db, "triage." + result["status"], identifier)
     except Exception as exc:
-        if isinstance(exc, ModelError) and exc.reply is not None:
+        if (
+            attempt["workflow"] == "direct"
+            and isinstance(exc, ModelError)
+            and exc.reply is not None
+        ):
             save_reply(exc.reply)
         # Even a timeout may have completed remotely. Neither failures nor unknowns are retried.
         code = exc.code if isinstance(exc, ModelError) else "analysis_interrupted"
