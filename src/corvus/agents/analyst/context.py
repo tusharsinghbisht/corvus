@@ -9,7 +9,7 @@ from ...reporting.schema import REPORT_SCHEMA
 from ...timeutil import utc
 from ..correlation import correlate
 
-CONTEXT_VERSION = "2.0"
+CONTEXT_VERSION = "2.1"
 TIMESTAMP_PATTERN = re.compile(
     REPORT_SCHEMA["properties"]["timeline"]["items"]["properties"]["timestamp"]["pattern"]
 )
@@ -115,7 +115,7 @@ def source_view(source):
     return projected, reduced or bool(omitted)
 
 
-def select_context(bundle, *, profile="focused"):
+def select_context(bundle, *, profile="focused", saved_collection=None):
     if profile not in PROFILES:
         raise ValueError("Unknown context profile")
     max_events, max_bytes = PROFILES[profile]
@@ -123,6 +123,14 @@ def select_context(bundle, *, profile="focused"):
     correlation = correlate(bundle, expanded=profile == "expanded")
     selected = deepcopy(bundle)
     selected["events"] = []
+    if saved_collection:
+        selected["scope"]["saved_collection_reuse"] = deepcopy(saved_collection)
+        selected["gaps"].append(
+            {
+                "code": "saved_collection_reused",
+                "message": "Historical saved evidence was reused without a fresh backend query. Preserve its original time and coverage; these observations do not establish current endpoint state.",
+            }
+        )
     selection = {
         "version": CONTEXT_VERSION,
         "profile": profile,
@@ -211,7 +219,7 @@ def select_context(bundle, *, profile="focused"):
         and not selection["omitted_query_references"]
     ):
         selected["gaps"].remove(gap)
-        selected["status"] = bundle["status"]
+        selected["status"] = "partial" if saved_collection else bundle["status"]
     selected["events"].sort(key=lambda event: str(event["context"].get("timestamp", "")))
     if len(encoded(EvidenceCatalog(selected).view)) > max_bytes:
         raise ContextBudgetError(

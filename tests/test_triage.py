@@ -99,7 +99,7 @@ class TriageTests(TriageDatabaseCase):
         self.assertEqual(attempt["model_reply"]["content"], json.dumps(self.report))
         self.assertEqual(attempt["result"]["model"]["served_model"], "test-served")
         self.assertEqual(attempt["provenance"]["requested_model"], "test-requested")
-        self.assertEqual(attempt["provenance"]["prompt_version"], "0.6")
+        self.assertEqual(attempt["provenance"]["prompt_version"], "0.7")
         self.assertTrue(attempt["result"]["human_review_required"])
         self.model.complete.assert_called_once()
         self.collector.assert_called_once()

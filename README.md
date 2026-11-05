@@ -89,6 +89,7 @@ Do not edit application code separately on the VPS or copy it there with rsync. 
 - [Analyst configuration and report validation](docs/investigation-reports.md)
 - [Human assessment review](docs/report-review.md)
 - [Focused context, Correlation, and Intel](docs/local-agents.md)
+- [Reuse saved evidence without recollection](docs/saved-evidence.md)
 - [Wazuh lab operations](docs/lab-setup.md)
 - [Archive collection and retention](docs/telemetry-archives.md)
 - [Windows simulation plan](docs/windows-simulation-plan.md)

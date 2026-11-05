@@ -5,7 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, time } from "@/lib/api";
 import { activeStatuses, statusLabels } from "@/lib/investigations";
-import type { Attempt, AttemptDetail, Report } from "@/lib/investigations";
+import type {
+  Attempt,
+  AttemptDetail,
+  Report,
+  SavedCollection,
+} from "@/lib/investigations";
 import { InvestigationReport } from "./investigation-report";
 import { InvestigationFailure } from "./investigation-failure";
 import { SelectedEvidence } from "./selected-evidence";
@@ -15,6 +20,10 @@ import { ReportReviewPanel } from "./report-review";
 import { ReviewBadge } from "./review-badge";
 import { InvestigationExport } from "./investigation-export";
 import { ValidationIssues } from "./validation-issues";
+import {
+  SavedCollectionReuse,
+  HistoricalCollectionNotice,
+} from "./saved-collection";
 
 export function Investigation({
   alertId,
@@ -141,6 +150,40 @@ export function Investigation({
       setRefresh((n) => n + 1);
     }
   }
+  async function reuseCollection(
+    profile: "focused" | "expanded",
+    binding: SavedCollection,
+    acknowledged: boolean,
+  ) {
+    if (busy || !detail || activeAttempt) return;
+    setBusy(true);
+    setApproved(false);
+    setError("");
+    try {
+      const data = await api<{ id: string }>(`${base}/${detail.id}/reuse`, {
+        method: "POST",
+        body: JSON.stringify({
+          profile,
+          source_evidence_digest: binding.evidence_digest,
+          acknowledge_historical: acknowledged,
+        }),
+      });
+      selectAttempt(data.id);
+      setDetail(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401)
+        router.replace("/login");
+      else
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not prepare saved evidence. Refresh before trying again.",
+        );
+    } finally {
+      setBusy(false);
+      setRefresh((value) => value + 1);
+    }
+  }
   async function chooseContext(profile: "focused" | "expanded") {
     if (busy || !detail) return;
     setBusy(true);
@@ -198,13 +241,30 @@ export function Investigation({
               : "Turn this detection into an evidence-linked assessment. Context is prepared locally before any manual approval."}
           </p>
         </div>
-        <button
-          className="button primary"
-          disabled={busy || attempts === null || !!activeAttempt}
-          onClick={() => void act("collect")}
-        >
-          Investigate with Analyst
-        </button>
+        <div className="investigation-actions">
+          {visible?.saved_collection && (
+            <button
+              className="button secondary"
+              disabled={busy || !!activeAttempt}
+              onClick={() => {
+                const panel = document.getElementById(`reuse-${visible.id}`);
+                if (panel instanceof HTMLDetailsElement) {
+                  panel.open = true;
+                  panel.scrollIntoView({ block: "start", behavior: "smooth" });
+                }
+              }}
+            >
+              Reuse saved evidence
+            </button>
+          )}
+          <button
+            className="button primary"
+            disabled={busy || attempts === null || !!activeAttempt}
+            onClick={() => void act("collect")}
+          >
+            Investigate with Analyst
+          </button>
+        </div>
       </div>
       <div className="investigation-body">
         <AlertAnalystMode connectionId={connectionId} />
@@ -268,6 +328,12 @@ export function Investigation({
             </p>
             {visible ? (
               <>
+                {visible.provenance?.saved_collection && (
+                  <HistoricalCollectionNotice
+                    reuse={visible.provenance.saved_collection}
+                    alertId={alertId}
+                  />
+                )}
                 {visible.error_code && (
                   <InvestigationFailure attempt={visible} />
                 )}
@@ -453,6 +519,14 @@ export function Investigation({
                     Cancel unstarted work
                   </button>
                 )}
+                <SavedCollectionReuse
+                  key={`saved-${visible.id}`}
+                  attempt={visible}
+                  disabled={busy || !!activeAttempt}
+                  onPrepare={(profile, binding, acknowledged) =>
+                    void reuseCollection(profile, binding, acknowledged)
+                  }
+                />
                 <InvestigationExport
                   key={`export-${visible.id}`}
                   alertId={alertId}

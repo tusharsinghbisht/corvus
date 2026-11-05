@@ -1,5 +1,6 @@
 """Manual investigation state. Evidence collection never implies external consent."""
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -9,10 +10,12 @@ from ...agents.analyst import prepare_report
 from ...agents.analyst.context import ContextBudgetError, select_context
 from ...agents.intel import inspect as inspect_indicators
 from ...reporting.evidence import EvidenceCatalog
+from ...timeutil import utc
 from ..database import audit
 from . import reviews
 
 ACTIVE = ("pending_collection", "collecting", "awaiting_approval", "queued", "requesting")
+TERMINAL = ("validated", "rejected", "failed", "unknown", "cancelled")
 SUMMARY = """id,job_id,number,requested_by,created_at,status,collection_started_at,
     evidence_digest,approved_by,approved_at,approved_digest,request_started_at,
     completed_at,provenance,error_code,mode,policy_version"""
@@ -34,6 +37,32 @@ def history(db, alert_id):
     ).fetchall()
 
 
+def saved_collection_binding(attempt):
+    if (
+        attempt["status"] not in TERMINAL
+        or not isinstance(attempt["evidence"], dict)
+        or not isinstance(attempt["evidence"].get("scope"), dict)
+    ):
+        return None
+    try:
+        catalog = EvidenceCatalog(attempt["evidence"])
+    except ValueError:
+        return None
+    collected_at = attempt["evidence"].get("completed_at") or attempt["evidence"].get(
+        "scope", {}
+    ).get("as_of")
+    try:
+        collected_at = utc(collected_at).isoformat() if collected_at else None
+    except ValueError:
+        collected_at = None
+    return {
+        "collection_id": catalog.collection_id,
+        "evidence_digest": catalog.digest,
+        "collected_at": collected_at,
+        "supporting_events": len(attempt["evidence"]["events"]),
+    }
+
+
 def detail(db, alert_id, attempt_id):
     row = db.execute(
         """SELECT a.* FROM triage_attempts a JOIN triage_jobs j ON j.id=a.job_id
@@ -47,6 +76,7 @@ def detail(db, alert_id, attempt_id):
         if row["error_code"] == "context_budget_exceeded"
         else (row["analysis_evidence"] or row["evidence"])
     )
+    row["saved_collection"] = saved_collection_binding(row)
     row["local_intel"] = inspect_indicators(selected) if selected else None
     row["prepared_input"] = row["input_snapshot"] or (
         prepare_report(selected) if selected else None
@@ -54,6 +84,17 @@ def detail(db, alert_id, attempt_id):
     row["prepared_input_reconstructed"] = bool(selected and not row["input_snapshot"])
     row["human_review"] = reviews.page(db, row) if row["status"] == "validated" else None
     return row
+
+
+def next_number(db, job_id):
+    # Caller holds the job row lock, shared with every other attempt-creation path.
+    if db.execute(
+        "SELECT id FROM triage_attempts WHERE job_id=%s AND status=ANY(%s)", (job_id, list(ACTIVE))
+    ).fetchone():
+        raise HTTPException(409, "An investigation is already active for this alert")
+    return db.execute(
+        "SELECT coalesce(max(number),0)+1 AS n FROM triage_attempts WHERE job_id=%s", (job_id,)
+    ).fetchone()["n"]
 
 
 def request_collection(db, alert_id, user_id, *, automatic=False):
@@ -66,20 +107,12 @@ def request_collection(db, alert_id, user_id, *, automatic=False):
     job = db.execute(
         "SELECT id FROM triage_jobs WHERE alert_id=%s FOR UPDATE", (alert_id,)
     ).fetchone()
-    if db.execute(
-        "SELECT id FROM triage_attempts WHERE job_id=%s AND status=ANY(%s)",
-        (job["id"], list(ACTIVE)),
-    ).fetchone():
-        raise HTTPException(409, "An investigation is already active for this alert")
+    number = next_number(db, job["id"])
     if (
         automatic
         and db.execute("SELECT 1 FROM triage_attempts WHERE job_id=%s", (job["id"],)).fetchone()
     ):
         raise HTTPException(409, "This alert already has an investigation attempt")
-    number = db.execute(
-        "SELECT coalesce(max(number),0)+1 AS n FROM triage_attempts WHERE job_id=%s",
-        (job["id"],),
-    ).fetchone()["n"]
     identifier = uuid4()
     db.execute(
         """INSERT INTO triage_attempts(id,job_id,number,requested_by,status)
@@ -87,6 +120,62 @@ def request_collection(db, alert_id, user_id, *, automatic=False):
         (identifier, job["id"], number, user_id),
     )
     audit(db, "triage.collection_requested", identifier, user_id)
+    return identifier
+
+
+def reuse_collection(db, alert_id, source_id, body, user_id):
+    if not body.acknowledge_historical:
+        raise HTTPException(
+            400,
+            "Explicit acknowledgement of historical evidence is required; this is not model-processing consent",
+        )
+    source = reviews.load_attempt(db, alert_id, source_id)
+    db.execute("SELECT id FROM triage_jobs WHERE id=%s FOR UPDATE", (source["job_id"],)).fetchone()
+    number = next_number(db, source["job_id"])
+    source = db.execute(
+        "SELECT * FROM triage_attempts WHERE id=%s FOR SHARE", (source_id,)
+    ).fetchone()
+    binding = saved_collection_binding(source)
+    if not binding:
+        raise HTTPException(
+            409, "Only a finished attempt with a valid saved original collection can be reused"
+        )
+    if binding["evidence_digest"] != body.source_evidence_digest:
+        raise HTTPException(
+            409, "The saved collection changed; reload before preparing a new attempt"
+        )
+    reuse = {
+        "source_attempt_id": str(source_id),
+        "source_attempt_number": source["number"],
+        "source_collection_id": binding["collection_id"],
+        "source_evidence_digest": binding["evidence_digest"],
+        "original_collected_at": binding["collected_at"],
+        "reused_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        selected = select_context(source["evidence"], profile=body.profile, saved_collection=reuse)
+    except ContextBudgetError:
+        raise HTTPException(
+            413,
+            "Saved evidence cannot fit this input budget; choose the broader profile or inspect the original",
+        ) from None
+    identifier = uuid4()
+    db.execute(
+        """INSERT INTO triage_attempts(id,job_id,number,requested_by,status,mode,evidence,analysis_evidence,input_snapshot,evidence_digest,provenance)
+        VALUES(%s,%s,%s,%s,'awaiting_approval','manual',%s,%s,%s,%s,%s)""",
+        (
+            identifier,
+            source["job_id"],
+            number,
+            user_id,
+            Jsonb(source["evidence"]),
+            Jsonb(selected),
+            Jsonb(prepare_report(selected)),
+            EvidenceCatalog(selected).digest,
+            Jsonb({"saved_collection": reuse, "evidence_source": "saved_collection"}),
+        ),
+    )
+    audit(db, "triage.saved_collection_prepared", identifier, user_id)
     return identifier
 
 
@@ -107,7 +196,11 @@ def choose_context(db, alert_id, attempt_id, profile, expected_digest, user_id):
     if expected_digest != row["evidence_digest"]:
         raise HTTPException(409, "Selected input changed; reload before choosing context")
     try:
-        selected = select_context(row["evidence"], profile=profile)
+        selected = select_context(
+            row["evidence"],
+            profile=profile,
+            saved_collection=(row["provenance"] or {}).get("saved_collection"),
+        )
     except ContextBudgetError:
         raise HTTPException(
             413,

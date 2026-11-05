@@ -1,0 +1,52 @@
+.investigation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.saved-collection-reuse {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-block: 20px;
+}
+.saved-collection-reuse > div {
+  margin-top: 18px;
+}
+.saved-collection-reuse label {
+  display: block;
+  font-size: 12px;
+  line-height: 1.8;
+  margin-block: 16px;
+}
+.saved-collection-reuse select {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 8px;
+}
+.saved-collection-reuse .saved-collection-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.soc .saved-collection-reuse input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-top: 4px;
+  accent-color: #c4c4cc;
+}
+.saved-collection-reuse p,
+.historical-collection p {
+  font-size: 12px;
+  line-height: 1.9;
+}
+.saved-collection-reuse .button {
+  max-width: 100%;
+  white-space: normal;
+}
+.historical-collection {
+  display: block;
+  margin-block: 18px;
+}

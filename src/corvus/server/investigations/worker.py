@@ -150,7 +150,9 @@ def analyze_attempt(settings, attempt, model_factory):
             "prompt_version": prepared["prompt_version"],
             "corvus_version": __version__,
             "revision": os.environ.get("CORVUS_REVISION", "unknown"),
-            "collection_scope": COLLECTION_SCOPE,
+            "collection_scope": attempt["evidence"].get("scope", {})
+            if (attempt["provenance"] or {}).get("saved_collection")
+            else COLLECTION_SCOPE,
             "evidence_digest": prepared["evidence_digest"],
         }
     except Exception:

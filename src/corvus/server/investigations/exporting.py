@@ -61,6 +61,17 @@ def summary(attempt, history):
         f"Evidence digest: {attempt['evidence_digest'] or 'No selected evidence'}",
         "",
     ]
+    reuse = (attempt["provenance"] or {}).get("saved_collection")
+    if reuse:
+        lines += [
+            "## Historical saved collection",
+            "No new backend query was performed. Reuse time is not observation time; this handoff does not establish current endpoint state.",
+            "Source attempt: " + text(reuse["source_attempt_id"]),
+            "Source collection: " + text(reuse["source_collection_id"]),
+            "Original collected/as-of time: "
+            + text(reuse["original_collected_at"] or "Not recorded"),
+            "Original collection digest: " + text(reuse["source_evidence_digest"]),
+        ]
     if attempt["status"] == "validated" and result and result["validation"]["valid"]:
         report = result["report"]
         lines += [

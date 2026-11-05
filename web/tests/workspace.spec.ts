@@ -590,6 +590,85 @@ test("local Correlation and Intel expose real saved inputs without another model
   expect(mutations).toEqual([]);
 });
 
+test("saved evidence prepares a pinned historical attempt without recollection or model consent", async ({
+  page,
+}) => {
+  const prohibited: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      (/\/investigations$/.test(new URL(request.url()).pathname) ||
+        request.url().endsWith("/approve"))
+    )
+      prohibited.push(request.url());
+  });
+  await login(page);
+  await page.getByRole("searchbox", { name: "Search alerts" }).fill("<img");
+  await expect(page.locator(".alert-title")).toHaveCount(1);
+  await page.locator(".alert-title").click();
+  const investigation = page.getByRole("region", {
+    name: "Analyst investigation",
+    exact: true,
+  });
+  await investigation
+    .getByRole("button", { name: "Reuse saved evidence", exact: true })
+    .click();
+  const reuse = investigation.locator(".saved-collection-reuse");
+  await expect(reuse).toHaveAttribute("open", "");
+  await expect(reuse).toContainText("2020");
+  const prepare = reuse.getByRole("button", {
+    name: "Prepare from saved evidence",
+    exact: true,
+  });
+  await expect(prepare).toBeDisabled();
+  await reuse.getByRole("checkbox").check();
+  const responseEvent = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/reuse"),
+  );
+  await prepare.click();
+  const response = await responseEvent;
+  expect(response.status()).toBe(201);
+  const { id } = await response.json();
+  await expect(page).toHaveURL(new RegExp("attempt=" + id));
+  await expect(investigation.locator(".historical-collection")).toContainText(
+    "no fresh backend query",
+  );
+  await expect(investigation.getByRole("status")).toContainText(
+    "Awaiting your approval",
+  );
+  await expect(
+    investigation.getByRole("button", {
+      name: "Approve one Analyst request",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp("attempt=" + id));
+  await expect(investigation.locator(".historical-collection")).toContainText(
+    "2020",
+  );
+  await expect(investigation.getByRole("checkbox")).not.toBeChecked();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await investigation
+    .locator(".historical-collection")
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "../artifacts/browser-tests/saved-collection-mobile.png",
+  });
+  await investigation
+    .getByRole("button", { name: "Cancel unstarted work", exact: true })
+    .click();
+  await expect(investigation.getByRole("status")).toContainText("Cancelled");
+  expect(prohibited).toEqual([]);
+});
+
 test("mobile workspace stays within the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);

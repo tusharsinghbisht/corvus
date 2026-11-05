@@ -23,7 +23,7 @@ This reselects from the saved local collection without recollecting, sending evi
 
 If the trigger/metadata cannot fit the focused cap, the local collection is retained with `context_budget_exceeded`. A manual operator can try the broader profile locally before approving anything. If even that does not fit, nothing is sent. Automatic policies use focused input and do not escalate budgets or profiles after a failure. Deployment does not enable automation.
 
-Saved historical reports, rejected candidates, and approved inputs are not retroactively trimmed or relabeled. They retain their actual historical event counts, digests, and prompts. Current prompt version is 0.6; context selection version is 2.0. CLI analysis still honors its explicitly reviewed bundle; these dashboard selection defaults do not silently rewrite CLI input.
+Saved historical reports, rejected candidates, and approved inputs are not retroactively trimmed or relabeled. They retain their actual historical event counts, digests, and prompts. Current prompt version is 0.7; context selection version is 2.1. A [saved-collection reuse](saved-evidence.md) annotation and historical-data gap survive profile switching and are included in the budget before approval. CLI analysis still honors its explicitly reviewed bundle; these dashboard selection defaults do not silently rewrite CLI input.
 
 ## Agent views
 

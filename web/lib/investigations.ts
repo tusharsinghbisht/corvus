@@ -51,6 +51,20 @@ export type ResponseDiagnostics = {
   served_model?: string | null;
   usage: Record<string, number>;
 };
+export type SavedCollection = {
+  collection_id: string;
+  evidence_digest: string;
+  collected_at: string | null;
+  supporting_events: number;
+};
+export type CollectionReuse = {
+  source_attempt_id: string;
+  source_attempt_number: number;
+  source_collection_id: string;
+  source_evidence_digest: string;
+  original_collected_at: string | null;
+  reused_at: string;
+};
 export type Attempt = {
   id: string;
   number: number;
@@ -66,6 +80,7 @@ export type Attempt = {
   completed_at: string | null;
   provenance:
     | (Record<string, unknown> & {
+        saved_collection?: CollectionReuse;
         max_tokens?: number;
         response?: ResponseDiagnostics;
       })
@@ -73,6 +88,7 @@ export type Attempt = {
   error_code: string | null;
 };
 export type AttemptDetail = Attempt & {
+  saved_collection?: SavedCollection | null;
   local_intel?: {
     version: string;
     mode: string;

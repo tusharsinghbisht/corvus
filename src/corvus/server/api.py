@@ -37,6 +37,13 @@ class ConnectionState(BaseModel):
     enabled: StrictBool
 
 
+class SavedCollectionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_evidence_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    acknowledge_historical: StrictBool
+    profile: Literal["focused", "expanded"] = "focused"
+
+
 class ContextChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
     profile: Literal["focused", "expanded"]
@@ -271,6 +278,13 @@ def create_app(settings):
     def investigation(identifier: UUID, attempt_id: UUID, current=Depends(user)):
         with connect(settings) as db:
             return triage.detail(db, identifier, attempt_id)
+
+    @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/reuse", status_code=201)
+    def reuse_investigation_collection(
+        identifier: UUID, attempt_id: UUID, body: SavedCollectionInput, current=Depends(user)
+    ):
+        with connect(settings) as db:
+            return {"id": triage.reuse_collection(db, identifier, attempt_id, body, current["id"])}
 
     @app.post("/api/alerts/{identifier}/investigations/{attempt_id}/context")
     def select_investigation_context(

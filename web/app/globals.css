@@ -3,6 +3,7 @@
 @import "../components/reviews.css";
 @import "../components/prototype.css";
 @import "../components/local-agents.css";
+@import "../components/saved-collection.css";
 
 :root {
   color-scheme: dark;
