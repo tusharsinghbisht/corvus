@@ -29,7 +29,17 @@ export function Shell({ children }: { children: ReactNode }) {
   const content = useRef<HTMLElement>(null);
   useEffect(() => {
     content.current?.scrollTo({ top: 0, left: 0 });
+    if (window.matchMedia("(max-width: 760px)").matches) setAgentsOpen(false);
   }, [path]);
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 760px)");
+    const close = () => {
+      if (mobile.matches) setAgentsOpen(false);
+    };
+    close();
+    mobile.addEventListener("change", close);
+    return () => mobile.removeEventListener("change", close);
+  }, []);
   useEffect(() => {
     try {
       setCollapsed(localStorage.getItem(SIDEBAR_PREFERENCE) === "true");

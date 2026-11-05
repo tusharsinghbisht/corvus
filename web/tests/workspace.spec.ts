@@ -572,6 +572,7 @@ test("local Correlation and Intel expose real saved inputs without another model
     local.getByRole("region", { name: "Local indicator intelligence" }),
   ).toContainText("No DNS");
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator("#agent-navigation")).toHaveCount(0);
   await local.scrollIntoViewIfNeeded();
   expect(
     await page.evaluate(

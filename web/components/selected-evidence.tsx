@@ -23,7 +23,7 @@ export function SelectedEvidence({
       }
     | undefined;
   const selectedBytes = new TextEncoder().encode(
-    JSON.stringify(evidence),
+    JSON.stringify(attempt.prepared_input?.evidence ?? evidence),
   ).length;
   return (
     <div className="selected-evidence">
