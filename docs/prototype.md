@@ -28,6 +28,6 @@ Regression suites use disposable PostgreSQL, offline evidence, and fake model re
 - No automatic repair, ambiguous-call retry, historical automatic backlog processing, or billing reconciliation.
 - Local encrypted snapshots/verified database restores, but no managed off-host copy, continuous recovery/WAL archive, automated full-host failover, or source-data retention policy.
 - No historical ingestion reconciliation beyond the overlap horizon.
-- No Atomic Red Team simulations executed. Follow the separate pinned/reviewed Windows plan with explicit endpoint approval; installing this prototype does not approve a simulation.
+- A separately approved, bounded Atomic Red Team campaign produced a preserved real Windows dataset; see [dataset and retirement](windows-dataset.md). It is a smoke dataset, not a broad attack benchmark or evidence of compromise. Future simulations still require explicit endpoint approval; installing Corvus does not grant it.
 
 This is an operational investigation prototype, not an unattended production SOC. Keep automation off until its independent consent, scope, and budgets are intentionally reviewed.
