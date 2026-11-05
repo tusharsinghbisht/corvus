@@ -25,7 +25,7 @@ The collection's original ID, timestamp, documents, query results, and gaps rema
 - A valid preparation commits `awaiting_approval`, not a collection or model queue entry. The worker ignores it until a separate approval. Preparation cannot resume or repair a billed request.
 - Source attempt/collection IDs, source digest, original time, and reuse time are preserved in provenance and private exports. Markdown handoffs explicitly say that no new backend query occurred.
 
-The Analyst is instructed to scope findings to the original period and not infer current endpoint state, remediation, containment, or incident resolution. Input warnings and integrity validation do not prove narrative quality. Reusing a report never means its old conclusion or review was accepted for a new attempt.
+The Analyst is instructed to scope findings to the original period and not infer current endpoint state, remediation, containment, or incident resolution. Input warnings and integrity validation do not prove narrative quality. Reusing its collection never means the old conclusion or review was accepted for a new attempt.
 
 ## Verification
 

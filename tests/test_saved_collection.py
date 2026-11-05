@@ -232,6 +232,43 @@ class SavedCollectionTests(ReviewedReportCase):
         self.model.complete.assert_not_called()
         self.collector.assert_not_called()
 
+    def test_automatic_source_never_carries_policy_authorization_into_reuse(self):
+        with connect(self.settings) as db:
+            db.execute(
+                "UPDATE triage_attempts SET mode='automatic',policy_version=99 WHERE id=%s",
+                (self.identifier,),
+            )
+        response = self.reuse()
+        self.assertEqual(response.status_code, 201, response.text)
+        current = self.read(response.json()["id"])
+        self.assertEqual(current["mode"], "manual")
+        self.assertIsNone(current["policy_version"])
+        self.assertIsNone(current["approved_at"])
+        self.tick()
+        self.factory.assert_not_called()
+        self.model.complete.assert_not_called()
+
+    def test_unknown_collection_age_is_not_replaced_with_preparation_time(self):
+        original = copy.deepcopy(self.read(self.identifier)["evidence"])
+        original.pop("completed_at", None)
+        original["scope"].pop("as_of", None)
+        with connect(self.settings) as db:
+            db.execute(
+                "UPDATE triage_attempts SET evidence=%s WHERE id=%s",
+                (Jsonb(original), self.identifier),
+            )
+        self.assertIsNone(self.read(self.identifier)["saved_collection"]["collected_at"])
+        response = self.reuse()
+        self.assertEqual(response.status_code, 201, response.text)
+        current = self.read(response.json()["id"])
+        self.assertIsNone(current["provenance"]["saved_collection"]["original_collected_at"])
+        self.assertIsNone(
+            current["analysis_evidence"]["scope"]["saved_collection_reuse"]["original_collected_at"]
+        )
+        self.assertIsNone(current["collection_started_at"])
+        self.assertEqual(current["evidence"], original)
+        self.model.complete.assert_not_called()
+
     def test_export_marks_historical_origin_without_promoting_the_source_review_or_report(self):
         self.post()
         identifier = self.reuse().json()["id"]
